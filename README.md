@@ -66,7 +66,7 @@ We value your feedback! If you have any suggestions, ideas, or questions, feel f
 ## 🙏 Acknowledgments
 
 We are incredibly grateful to all contributors, reviewers, and users who make this project a success.  
-Your time, effort, and expertise are what drive this community forward. Thank you for being part of **Project Name**! ❤️
+Your time, effort, and expertise are what drive this community forward. Thank you for being part of **Lithe Board**! ❤️
 
 ---
 
