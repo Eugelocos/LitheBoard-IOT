@@ -6,9 +6,6 @@ This software is licensed for commercial use under the terms of the **Litheboard
 ## License Features:
 1. **Commercial Use**:  
    Grants rights to use, modify, and distribute the software for commercial purposes.
-   
-2. **Priority Support**:  
-   Includes optional access to technical support as defined in the agreement.
 
 ## Contact for Licensing:
 To obtain a commercial license, please contact:
