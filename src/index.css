@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8f8f8;
+  overflow-x: hidden; /* Asegura que no haya desbordamiento horizontal */
+}
+@media (max-width: 530px) {
+  body {
+    font-size: 14px; /* Ajusta el tamaño de la fuente para pantallas pequeñas */
+  }
+}
+
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.title{
+  font-weight: bold;
+  text-align: center;
+  vertical-align: middle;
+  
+}
+.MuiCard-root {
+  margin: 20px;
+  transition: transform 0.2s;
+}
+
+.MuiCard-root:hover {
+  transform: scale(1.05);
+}
+
+.MuiSwitch-root {
+  margin-right: 16px;
+}
+
+.MuiIconButton-root {
+  color: #232939;
+}
+
+.MuiButton-containedSecondary {
+  background-color: #e53935;
+  color: #fff;
+}
+
+.MuiButton-containedSecondary:hover {
+  background-color: #d32f2f;
+}
