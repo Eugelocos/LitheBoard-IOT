@@ -394,10 +394,11 @@ input:checked + .slider:before {
 #clientId,
 #subTopic,
 #pubTopic,
-#switcher,
+#switcher
 .switch{
   margin-top: 10px;
 }
+
 
 #widget_name{
   margin-top: 20px;
