@@ -5,10 +5,10 @@ import {
   Route,
   Navigate
 } from 'react-router-dom';
-import Login from '../Login/LoginPage'; // Importa tu componente de login aquí
-import DashboardPanel from './MainPanel'; // Tu componente principal después de iniciar sesión
-import Register from '../Login/RegisterPage';
-import "../../DashboardsPanel.css"
+import Login from '../Login/login_page'; // Importa tu componente de login aquí
+import DashboardPanel from './main_panel'; // Tu componente principal después de iniciar sesión
+import Register from '../Login/register_page';
+import "../../dashboards_panel.css"
 
 function App() {
   return (

@@ -1,20 +1,22 @@
 import React, { useRef, useState, useEffect } from "react";
-import "../../App.jsx";
-import Content from "./Widget/WidgetForm/Content.jsx";
-import Disps from "../../Entities/Disp.jsx";
-import Sketch from "../../../Sketch.js";
-import DeviceList from "./Widget/DashboardWidgetList.jsx";
+import "../../app.jsx";
+import Content from "./Widget/WidgetForm/widgets_form_selection.jsx";
+import Disps from "../../Entities/disp.jsx";
+import DeviceList from "./Widget/dashboard_widget_list.jsx";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import "../../../../DashboardsPanel.css";
-import "../../../../App.css"
-import EditWidgetDrawer from "./Widget/WidgetForm/Edit/EditWidgetForm.jsx";
+import "../../../../dashboards_panel.css";
+import "../../../../app.css"
+import EditWidgetDrawer from "./Widget/WidgetForm/Edit/edit_widget_form.jsx";
 import axios from "axios";
 import {
+
   getDashboardWidgets,
   getHistoricosEntity,
-} from "../../../DatabaseDataFunctions.jsx";
+} from "../../../database_data_functions.jsx";
 import mqtt from "mqtt";
+import socket from "../../../../socket.js"
+import dayjs from "dayjs";
 
 //run(controller)
 
@@ -48,6 +50,7 @@ function Dashboard(props) {
   const contenedorRef = useRef(null);
   const sumDispRef = useRef(null);
   const sketchRef = useRef(null);
+
 
 
   function saveWidgetEdition(editedData) {
@@ -110,7 +113,39 @@ function Dashboard(props) {
     }
   }
   
+  useEffect(() => {
+    socket.on("mqtt_message", (recievedData) => {
+      const { widget_id, data } = recievedData;
 
+
+      setDatos(prevDatos => {
+        const updatedDatos = prevDatos.map(device => {
+          const newHistRow = {
+            history_id : device.historial.historic_id+1,
+            enity_id:device.device_id,
+            date: dayjs(Date.now()).format("DD/MM"),
+            data: data,
+            selcted_key:null
+          }
+          if (device.widget_id === widget_id) {  
+            return {
+              ...device,
+              historial: [...device.historial, newHistRow]
+            };
+          }
+          return device;  
+        });
+        console.log("updated datprs : ", updatedDatos)
+        return updatedDatos;
+      });
+
+    });
+
+  
+    return () => {
+      socket.off("mqtt_message");
+    };
+  }, []);
 
   useEffect(() => {
 
@@ -260,22 +295,7 @@ function Dashboard(props) {
       </div>
 
       <IntermediateComponent dispState={dispState}>
-        <Sketch
-          datos={datos}
-          setDatos={setDatos}
-          dispState={dispState}
-          user={user}
-          actualizarHistorial={getDashboardWidgetsLlamadaAsync}
-       alarms={alarms}
-          setUnseenNotifications={setUnseenNotifications}
-          fetchNotifications={fetchNotifications}
-          dispositivos={dispositivos}
-          clientAlert={clientAlert}
-          setClientAlert={setClientAlert}
-          dashboard_id={dashboard_id}
-          indexDashboard={indexDashboard}
-          client={clientMQTT}
-        />
+
       </IntermediateComponent>
       <div ref={sumDispRef} id="sumDisp" style={{ display: "none" }}>
         <div className="flex flex-wrap justify-center">

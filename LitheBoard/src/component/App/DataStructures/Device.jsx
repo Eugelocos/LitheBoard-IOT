@@ -1,5 +1,5 @@
 class Device {
-  constructor(device_id, widget_name, clientId, dashboardID, widget_type, historial, config) {
+  constructor(device_id, widget_name, clientId, dashboardID, widget_type, historial, config, mqttData) {
     this.widget_id = null;
     this.device_id = device_id;
     this.dashboardID = dashboardID;
@@ -8,6 +8,7 @@ class Device {
     this.config = config;
     this.widget_type = widget_type;
     this.historial = historial;
+    this.mqttData = mqttData;
   }
 }
 

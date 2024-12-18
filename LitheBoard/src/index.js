@@ -2,9 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import './main.css'
-import App from "./component/App/App.jsx"
+import App from "./component/App/app.jsx"
 import reportWebVitals from './reportWebVitals.js';
-import Sketch from './component/Sketch.js';
 
 
 
