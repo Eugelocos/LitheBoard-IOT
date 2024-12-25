@@ -8,15 +8,15 @@ const db = require("../config/db");
  * `[results]`.
  */
 async function getEntities() {
-  const query = 'SELECT * FROM entities'; // Consulta con parámetro
+  const query = 'SELECT * FROM entities'; 
 
   try {
-    // Ejecutamos la consulta usando db.promise().query()
-    const [results] = await db.promise().query(query); // Pasamos client_id como parámetro
-    return results; // Devolvemos los resultados obtenidos
+
+    const [results] = await db.promise().query(query);
+    return results; 
   } catch (err) {
     console.error('Error al obtener las entidades:', err);
-    throw err; // Lanzamos el error para que se maneje en el lugar donde se llame la función
+    throw err;
   }
 }
 

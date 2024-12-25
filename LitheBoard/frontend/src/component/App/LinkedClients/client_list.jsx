@@ -1,0 +1,241 @@
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { DataGrid } from "@mui/x-data-grid";
+import IconButton from "@mui/material/IconButton";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import DashboardIcon from "@mui/icons-material/DashboardRounded";
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Select, MenuItem, FormControl, InputLabel } from "@mui/material";
+
+function ClientList({ client_id, dashboards, clients_asociated, setClientsAsociated, setDashboards}) {
+  const [open_dialog, setOpenDialog] = useState(false);
+  const [selected_dashboard_id, setSelectedDashboardId] = useState("");
+  const [selected_client_id, setSelectedclient_id] = useState(null);
+  const [available_dashboards, setAvailableDashboards] = useState([]);
+  const [assigned_dashboards, setAssignedDashboards] = useState([]);
+
+  const baseURL = `http://litheboard-backend:3001`;
+
+  useEffect(() => {
+    // Fetch associated client IDs from the backend
+    axios
+      .get(`${baseURL}/api/asociatedClients-Admins/${client_id}`)
+      .then((response) => {
+        const associated_client_ids = response.data;
+        // Fetch details of each associated client
+        return axios.get(
+          `${baseURL}/api/clients_id-client/${associated_client_ids.join(",")}`
+        );
+      })
+      .then((response) => {
+        setClientsAsociated(response.data);
+      })
+      .catch((error) => {
+        console.error("Error fetching associated clients:", error);
+      });
+  }, [client_id]);
+
+  const handleOpenDialog = (client_id) => {
+    setSelectedclient_id(client_id);
+    // Filter the dashboards assigned to the selected client
+    const assigned = dashboards.filter(dashboard =>
+      (dashboard.additional_client_ids || "[]").includes(client_id)
+    );
+    setAssignedDashboards(assigned);
+
+    // Get available dashboards
+    const assigned_ids = assigned.map(dashboard => dashboard.dashboard_id);
+    const available = dashboards.filter(dashboard => !assigned_ids.includes(dashboard.dashboard_id));
+    setAvailableDashboards(available);
+
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  const handleDashboardChange = (event) => {
+    setSelectedDashboardId(event.target.value);
+  };
+
+  const handleAssignDashboard = async () => {
+    if (selected_dashboard_id && selected_client_id) {
+      axios
+        .post(`${baseURL}/api/assign-dashboard`, {
+          client_id: selected_client_id,
+          dashboardId: selected_dashboard_id,
+        })
+        .then((response) => {
+          alert(response.data.message);
+          
+          handleCloseDialog();
+        })
+        .catch((error) => {
+          console.error("Error assigning dashboard:", error);
+          alert("Failed to assign dashboard");
+        });
+    }
+    const dashboards_response = await axios.get(
+        `${baseURL}/api/data/dashboards/${client_id}`
+      );
+    setDashboards(dashboards_response.data)
+    
+  };
+
+  const columns = [
+    {
+      field: "client_name",
+      renderHeader: () => <h2 className="font-medium text-gray-900 text-[14px]">{"Nombre del Cliente"}</h2>,
+      flex: 1,
+    },
+    {
+      field: "email",
+      renderHeader: () => <h2 className="font-medium text-gray-900 text-[14px]">{"Email"}</h2>,
+      flex: 1,
+    },
+    {
+      field: "dashboards_asigned",
+      renderHeader: () => <h2 className="font-medium text-gray-900 text-[14px]">{"Dashboards Assigned"}</h2>,
+      flex: 1,
+          cellClassName: 'truncate-cell'
+    },
+    {
+      field: "actions",
+      renderHeader: () => <h2 className="font-medium text-gray-900 text-[14px]">{"Acciones"}</h2>,
+      flex: 1,
+      renderCell: (params) => (
+        <>
+          <IconButton
+            className="text-my-blue hover:text-red-900"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Add your delete function here
+            }}
+          >
+            <DeleteIcon />
+          </IconButton>
+          <IconButton
+            className="text-my-blue hover:text-blue-400 editButon"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <EditIcon />
+          </IconButton>
+          <IconButton
+            className="text-my-blue hover:text-green-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenDialog(params.row.id); // Pass client_id here
+            }}
+          >
+            <DashboardIcon />
+          </IconButton>
+        </>
+      ),
+    },
+  ];
+  clients_asociated.forEach((client_asociated) => {
+    const associatedDashboards = dashboards.filter(dashboard =>
+      dashboard.additional_client_ids.includes(client_asociated.client_id)
+    );
+  });
+
+
+  const rows = clients_asociated.map((client_asociated) => ({
+    id: client_asociated.client_id,
+    client_name: client_asociated.name,
+    email: client_asociated.email,
+    dashboards_asigned: dashboards
+      .filter(dashboard =>
+        (dashboard.additional_client_ids || "[]").includes(client_asociated.client_id)
+      )
+      .map(dashboard => dashboard.name)
+      .join(', '),
+  }));
+
+  const dashboardColumns = [
+    { field: "name", headerName: "Dashboard Name", width: 200 },
+    { field: "description", headerName: "Description", width: 300 },
+  ];
+
+  const dashboardRows = assigned_dashboards.map(dashboard => ({
+    id: dashboard.dashboard_id,
+    name: dashboard.name,
+    description: dashboard.description || "No Description",
+  }));
+
+  return (
+    <div
+      className="min-w-fit min-h-full w-full h-full bg-white border border-gray-300 rounded p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1)] m-1/4 overflow-hidden"
+      id="alarm-list-table"
+    >
+      <Dialog open={open_dialog} onClose={handleCloseDialog}>
+        <DialogTitle>Assigned Dashboards</DialogTitle>
+        <DialogContent>
+          <div style={{ height: 400, width: '100%' }}>
+            <DataGrid
+              rows={dashboardRows}
+              columns={dashboardColumns}
+              pageSize={5}
+              checkboxSelection
+            />
+          </div>
+          <div className="my-3">
+          <FormControl fullWidth variant="filled">
+            <InputLabel id="select-dashboard-label">Add Dashboard</InputLabel>
+            <Select
+              labelId="select-dashboard-label"
+              value={selected_dashboard_id}
+              onChange={handleDashboardChange}
+            >
+              {available_dashboards.map(dashboard => (
+                <MenuItem key={dashboard.dashboard_id} value={dashboard.dashboard_id}>
+                  {dashboard.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>            
+          </div>
+
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleAssignDashboard} color="primary">
+            Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <div className="h-full w-full">
+        <div className="flex justify-between items-center py-2 px-4">
+          <h2 className="font-medium text-gray-900 text-xl">Clients</h2>
+          <button
+            id="show-add-alarm-panel"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white hover:bg-gray-200/75 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors duration-200"
+          >
+            <AddRoundedIcon />
+          </button>
+        </div>
+        <div className="h-[93%] w-full">
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            checkboxSelection={false}
+            initialState={{
+              pagination: {
+                paginationModel: { page: 0, pageSize: 5 },
+              },
+            }}
+            pageSizeOptions={[5, 10]}
+            columnBufferPx={5}
+            hideFooterPagination={!rows.length}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default ClientList;

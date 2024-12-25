@@ -1,5 +1,5 @@
 const db = require("../../config/db");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
 /**
  * The function `login` handles user authentication by comparing the provided password with the hashed
@@ -32,7 +32,7 @@ const login = async (req, res) => {
 
     // Verificar si la contraseña es válida
     const passwordToCompare = password.trim(); // Limpiar espacios antes de comparar
-    const isPasswordValid = await bcrypt.compare(passwordToCompare, user.password);
+    const isPasswordValid = await bcrypt.compareSync(passwordToCompare, user.password);
 
     console.log(
       "Contraseña introducida:",

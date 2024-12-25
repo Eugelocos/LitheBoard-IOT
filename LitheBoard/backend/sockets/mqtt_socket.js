@@ -27,7 +27,6 @@ function init(socketIo) {
 function emitMqttMessage(data) {
   if (io) {
     io.emit("mqtt_message", data);
-    console.log("Mensaje MQTT emitido a través de Socket.IO:", data);
   } else {
     console.error("Socket.IO no está inicializado.");
   }

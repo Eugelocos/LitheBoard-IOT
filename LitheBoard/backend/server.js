@@ -5,7 +5,6 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const session = require("express-session");
 const cookieParser = require("cookie-parser");
-const { default: axios } = require("axios");
 const db = require("./config/db");
 const mqtt_routes = require('./routes/mqtt_routes');
 require('dotenv').config();
@@ -21,14 +20,14 @@ const alarm_routes = require('./routes/alarm_routes');
 const notification_routes = require('./routes/notification_routes');
 /* The above code snippet is written in JavaScript and it is setting up a server using the
 Express framework. */
-axios.defaults.withCredentials = true;
+
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.BACKEND_PORT || 3001;
 
 /* The above code is setting up a Node.js/Express server with some middleware configurations: */
 app.use(
   cors({
-    origin: ["http://localhost:3000"], // Frontend URL
+    origin: [`${process.env.WEB_URL}:${process.env.FRONTEND_PORT}`], // Frontend URL
     credentials: true, // cookies sending
   })
 );
@@ -72,14 +71,12 @@ app.use("/api", alarm_routes);
 //#region HTPP_WebSocket
 /* The above code is creating a server using the `http` module in Node.js and configuring a socket
 connection using the `configureSocket` function. It then initializes a MQTT socket using the
-`mqtt_socket.init` function with the configured socket connection. Finally, the server is set to
-listen on port 3002 and a message is logged to the console indicating that the server is running at
-`http://localhost:3002`. */
+`mqtt_socket.init` function with the configured socket connection. */
 const server = http.createServer(app);
 const io = configureSocket(server);
 mqtt_socket.init(io);
-server.listen(3002, () => {
-  console.log(`Servidor corriendo en http://localhost:${3002}`);
+server.listen(3010, () => {
+  console.log(`Websocket server runing in ${process.env.WEB_URL}:3010`);
 });
 //#endregion
 

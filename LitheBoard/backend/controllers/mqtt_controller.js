@@ -13,7 +13,10 @@ const mqttSocket = require("../sockets/mqtt_socket");
  */
 
 // Initialize MQTT client connection
-const mqttClient = mqtt.connect(process.env.MQTT_BROKER_URL);
+const mqttClient = mqtt.connect(process.env.MQTT_BROKER_URL, {
+  username: 'litheboard_admin',
+  password: 'pepelithe',
+});
 
 /**
  * Subscribes to all MQTT device topics based on entities fetched from the database.
@@ -49,8 +52,14 @@ mqttClient.on("connect", () => {
   subscribeToDevices();
 });
 
+mqttClient.on("error", (error) => {
+  console.error("MQTT client error:", error);
+});
+
 // Handle incoming MQTT messages
 mqttClient.on("message", async (topic, message) => {
+
+
   const parts = topic.split("/");
 
   const client_id = parts[1];
@@ -68,7 +77,7 @@ mqttClient.on("message", async (topic, message) => {
     
 
     // Save message to the history database
-    await historialModel.saveMessage(device_id, client_id, config.selected_key, messageData);
+    await historialModel.saveMessage(device_id, client_id, null, messageData);
 
     if (widgetData) {
       if (widgetData.length > 0) {
@@ -76,7 +85,7 @@ mqttClient.on("message", async (topic, message) => {
           try {
             const config = widget.config_data;
             const selected_key = config.selected_key || null;
-            console.log("Notification is being send to frontend . . .");
+          
             // Send message to frontend through MQTT socket
             mqttSocket.emitMqttMessage({
               topic,
@@ -119,7 +128,7 @@ mqttClient.on("message", async (topic, message) => {
             message: "Alarm triggered",
             data: messageData,
           });
-          console.log(`Alarm notification registered: ${alarm[0].alarm_id}`);
+          console.log(`Alarm notification registered`);
         }
       }
     }

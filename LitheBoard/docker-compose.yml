@@ -1,0 +1,76 @@
+networks:
+  litheboard-network:
+    driver: bridge
+
+services:
+  # Frontend React App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: litheboard-frontend
+    working_dir: /app/frontend
+    volumes:
+      - ./frontend:/app/frontend
+    ports:
+      - "3000:3000" # Public Web
+    environment:
+      - NODE_ENV=production
+    networks:
+      - litheboard-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: litheboard-backend
+    working_dir: /app/backend
+    volumes:
+      - ./backend:/app/backend
+    ports:
+      - "3001:3001" # API
+      - "3007:3007" # WebSocket
+    environment:
+      - EMQX_NAME=litheboard-emqx
+      - EMQX_LISTENER__TCP__EXTERNAL__PORT=1883
+      - EMQX_LISTENER__HTTP__EXTERNAL__PORT=8083
+      - EMQX_LISTENER__WEBSOCKET__EXTERNAL__PORT=8084
+      - EMQX_NODE__NAME=emqx@127.0.0.1
+      - EMQX_NODE__SET_COOKIE=secure-cookie-value-1234
+    networks:
+      - litheboard-network
+
+  # EMQX Broker
+  emqx:
+    image: emqx:latest
+    container_name: litheboard-emqx
+    ports:
+      - "18083:18083"
+      - "1883:1883"
+    environment:
+      - EMQX_NAME=emqx
+      - EMQX_LISTENER__TCP__EXTERNAL__ADDRESS=:1883
+      - EMQX_WEB_LISTENER__HTTP__EXTERNAL__ADDRESS=:18083
+      - EMQX_AUTH__AUTHENTICATOR__PASSWORD__ENABLED= "true" 
+      - EMQX_AUTH__AUTHENTICATOR__PASSWORD__USER= "litheboard_admin"  # Establece el nombre de usuario
+      - EMQX_AUTH__AUTHENTICATOR__PASSWORD__PASSWORD= "pepelithe" 
+    networks:
+    - litheboard-network
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0.23
+    container_name: litheboard-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: litheboard_db
+      MYSQL_USER: litheboard_user
+      MYSQL_PASSWORD: securepassword
+    ports:
+      - "3306:3306"
+    networks:
+      - litheboard-network
+    volumes:
+      - ./db/data:/var/lib/mysql
+      - ./db/dump.sql:/docker-entrypoint-initdb.d/dump.sql
