@@ -35,7 +35,7 @@ const ProfileSettingsPanel = ({ user, handleLogout }) => {
   const [email, setEmail] = useState(user?.email);
   const [message, setMessage] = useState({ text: '', isError: false });
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
   const handleSave = async () => {
     try {

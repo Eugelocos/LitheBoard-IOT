@@ -18,7 +18,7 @@ function DashboardListPanel({
   const [edited_name, setEditedName] = useState("");
   const [edited_description, setEditedDescription] = useState("");
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
 
 

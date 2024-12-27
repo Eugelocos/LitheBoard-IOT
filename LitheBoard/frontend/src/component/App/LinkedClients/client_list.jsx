@@ -15,7 +15,7 @@ function ClientList({ client_id, dashboards, clients_asociated, setClientsAsocia
   const [available_dashboards, setAvailableDashboards] = useState([]);
   const [assigned_dashboards, setAssignedDashboards] = useState([]);
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
   useEffect(() => {
     // Fetch associated client IDs from the backend

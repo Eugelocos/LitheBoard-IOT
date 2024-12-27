@@ -33,7 +33,7 @@ function Login() {
   const [show_password, setShowPassword] = useState(false);
 
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://tonga.mooo.com:3001`;
 
   const togglePasswordVisibility = () => {
     setShowPassword(!show_password);
@@ -43,7 +43,7 @@ function Login() {
     e.preventDefault();
     try {
       const response = await axios.post(
-        `${baseURL}/api/request-otp`,
+        'http://tonga.mooo.com:3001/api/login',
         {
           email: form_data.email,
         }

@@ -42,7 +42,7 @@ function Dashboard(props) {
   const sum_disp_ref = useRef(null);
 
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
 
   function saveWidgetEdition(edited_data) {

@@ -107,7 +107,7 @@ function DeviceCard({
   const [chart_size, setchart_size] = useState({ width: 0, height: 0 });
   const [historial, setHistorial] = useState({});
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
  
 
   useEffect(() => {

@@ -38,7 +38,7 @@ function Register() {
 
   const [show_password, setShowPassword] = useState(false);
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
   const togglePasswordVisibility = () => {
     setShowPassword(!show_password);

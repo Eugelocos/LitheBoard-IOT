@@ -26,10 +26,16 @@ const port = process.env.BACKEND_PORT || 3001;
 
 /* The above code is setting up a Node.js/Express server with some middleware configurations: */
 app.use(
-  cors({
-    origin: [`${process.env.WEB_URL}:${process.env.FRONTEND_PORT}`], // Frontend URL
-    credentials: true, // cookies sending
-  })
+  cors(
+    {
+      origin: '*', // Reemplaza 'backend' con el nombre de tu servicio en docker-compose.yml
+      allowedHeaders: '*'
+    }
+  )
+  // cors({
+  //   origin: '*',//`${process.env.WEB_URL}`, `0.0.0.0`],  Frontend URL 
+  //   credentials: true, // cookies sending
+  // })
 );
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -210,6 +216,6 @@ app.post("/api/notifications/markAsRead/:notification_id", async (req, res) => {
 
 
 
-app.listen(port, () => {
+app.listen(port,'0.0.0.0',() => {
   console.log(`Server running on port ${port}`);
 });

@@ -27,7 +27,7 @@ function DashboardPanel() {
 
   const [loading, setLoading] = useState(true);
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
   useEffect(() => {
     const fetchData = async () => {

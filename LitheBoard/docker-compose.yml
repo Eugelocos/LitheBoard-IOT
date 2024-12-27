@@ -1,7 +1,7 @@
 networks:
   litheboard-network:
     driver: bridge
-
+ 
 services:
   # Frontend React App
   frontend:
@@ -11,13 +11,14 @@ services:
     container_name: litheboard-frontend
     working_dir: /app/frontend
     volumes:
-      - ./frontend:/app/frontend
+      - ./frontend:/app/frontend:delegated
+      - /app/frontend/node_modules
     ports:
       - "3000:3000" # Public Web
     environment:
-      - NODE_ENV=production
+      - CHOKIDAR_USEPOLLING=true
     networks:
-      - litheboard-network
+     - litheboard-network
 
   # Backend API
   backend:

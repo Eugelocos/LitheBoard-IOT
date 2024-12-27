@@ -46,7 +46,7 @@ function TopMenu({
   const [expanded, setExpanded] = useState(false);
   const user_panel_ref = useRef(null);
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
   const toggleUserPanel = () => {
     setUserPanelOpen(!user_panel_open);

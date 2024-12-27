@@ -16,7 +16,7 @@ function DeviceList(props) {
   const [editedPubTopic, setEditedPubTopic] = useState("");
   const [token, setToken] = useState("");
   const { entities, handleAddDevice, setEntities, user } = props;
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
   const showDeviceList = (showDeviceList) => {
     setDeviceListVisible(showDeviceList);

@@ -21,7 +21,7 @@ function AddAlarm({ client_id, onCancel, onSave, entities }) {
   const [selected_key, setSelectedKey] = useState("");
   const [condition, setCondition] = useState("");
 
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
 
   const handleEntityChange = (e) => {
     setSelectedEntity(e.target.value);

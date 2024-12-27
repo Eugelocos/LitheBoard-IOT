@@ -3,7 +3,7 @@ import Device from "./App/DataStructures/device";
 import React, { useRef, useState, useEffect } from "react";
 
 
-const baseURL = `http://litheboard-backend:3001`;
+const baseURL = `http://backend:3001`;
 //#region Historicos
 function setDatosHistoricos(
   historial_data,

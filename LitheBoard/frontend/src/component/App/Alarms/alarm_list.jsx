@@ -9,7 +9,7 @@ import AddAlarm from "./add_alarm";
 
 function AlarmList({ client_id, alarms, setAlarms, entities }) {
   const [is_add_alarm_visible, setIsAddAlarmVisible] = useState(false);
-  const baseURL = `http://litheboard-backend:3001`;
+  const baseURL = `http://backend:3001`;
   useEffect(() => {
     // Fetch alarms from the backend
     axios
