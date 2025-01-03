@@ -13,7 +13,7 @@ import {
   Grid,
   Container
 } from "@mui/material";
-
+import config from "@config";
 
 function AddAlarm({ client_id, onCancel, onSave, entities }) {
   const [selected_entity, setSelectedEntity] = useState("");
@@ -21,7 +21,7 @@ function AddAlarm({ client_id, onCancel, onSave, entities }) {
   const [selected_key, setSelectedKey] = useState("");
   const [condition, setCondition] = useState("");
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const handleEntityChange = (e) => {
     setSelectedEntity(e.target.value);
@@ -37,7 +37,7 @@ function AddAlarm({ client_id, onCancel, onSave, entities }) {
     };
 
     axios
-      .post(`${baseURL}/api/alarms/insert`, alarmData)
+      .post(`${base_url}/api/alarms/insert`, alarmData)
       .then((response) => {
         console.log("Alarm saved:", response.data);
         setSelectedEntity("");

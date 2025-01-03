@@ -28,6 +28,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from "@mui/icons-material";
+import config from "@config";
 
 function TopMenu({
   user,
@@ -46,7 +47,7 @@ function TopMenu({
   const [expanded, setExpanded] = useState(false);
   const user_panel_ref = useRef(null);
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const toggleUserPanel = () => {
     setUserPanelOpen(!user_panel_open);
@@ -55,7 +56,7 @@ function TopMenu({
   const handleLogout = async () => {
     try {
       await axios.post(
-        `${baseURL}/api/logout`,
+        `${base_url}/api/logout`,
         {},
         { withCredentials: true }
       );
@@ -107,7 +108,7 @@ function TopMenu({
   const handleMarkAsRead = (notification_id) => {
     axios
       .post(
-        `${baseURL}/api/notifications/markAsRead/${notification_id}`
+        `${base_url}/api/notifications/markAsRead/${notification_id}`
       )
       .then(() => {
         setAllNotifications((prevNotifications) =>

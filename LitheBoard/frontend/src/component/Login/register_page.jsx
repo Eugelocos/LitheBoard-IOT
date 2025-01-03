@@ -24,7 +24,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import {IconButton, InputAdornment } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-
+import config from "@config";
 function Register() {
   const [form_data, setFormData] = useState({
     name: "",
@@ -38,7 +38,7 @@ function Register() {
 
   const [show_password, setShowPassword] = useState(false);
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const togglePasswordVisibility = () => {
     setShowPassword(!show_password);
@@ -56,7 +56,7 @@ console.log("Contraseña recibida:", form_data.password.trim());
       };
 
       const response = await axios.post(
-        `${baseURL}/api/register`,
+        `${base_url}/api/register`,
         form_data_with_hashed_password
       );
       console.log("Server response:", response.data);

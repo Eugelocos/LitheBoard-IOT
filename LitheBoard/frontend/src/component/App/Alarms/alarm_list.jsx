@@ -6,14 +6,14 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AddAlarm from "./add_alarm";
-
+import config from "@config";
 function AlarmList({ client_id, alarms, setAlarms, entities }) {
   const [is_add_alarm_visible, setIsAddAlarmVisible] = useState(false);
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
   useEffect(() => {
     // Fetch alarms from the backend
     axios
-      .get(`${baseURL}/api/alarms/${client_id}`)
+      .get(`${base_url}/api/alarms/${client_id}`)
       .then((response) => {
         setAlarms(response.data);
       })
@@ -32,7 +32,7 @@ function AlarmList({ client_id, alarms, setAlarms, entities }) {
 
   const handleSaveAlarm = (newAlarm) => {
     axios
-      .get(`${baseURL}/api/alarms/${client_id}`)
+      .get(`${base_url}/api/alarms/${client_id}`)
       .then((response) => {
         setAlarms(response.data);
       })

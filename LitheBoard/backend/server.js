@@ -24,19 +24,17 @@ Express framework. */
 const app = express();
 const port = process.env.BACKEND_PORT || 3001;
 
-/* The above code is setting up a Node.js/Express server with some middleware configurations: */
-app.use(
-  cors(
-    {
-      origin: '*', // Reemplaza 'backend' con el nombre de tu servicio en docker-compose.yml
-      allowedHeaders: '*'
-    }
-  )
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://backend:3000'], // Permitir orígenes específicos
+  //allowedHeaders: ['Content-Type', 'Authorization'], // Encabezados permitidos
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
+  credentials: true // Permite el envío de cookies, que puede ser útil para CORS
+}));
   // cors({
-  //   origin: '*',//`${process.env.WEB_URL}`, `0.0.0.0`],  Frontend URL 
+  //   origin: '*',`${process.env.WEB_URL}`, `0.0.0.0`],  Frontend URL 
   //   credentials: true, // cookies sending
   // })
-);
+//); 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -89,7 +87,9 @@ server.listen(3010, () => {
 
 
 
-
+app.get("/hola", async (req, res) => {    // Devolver las notificaciones
+  res.status(200).json("la concha de la lora");
+})
 
 
 

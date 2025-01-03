@@ -7,7 +7,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DashboardIcon from "@mui/icons-material/DashboardRounded";
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Select, MenuItem, FormControl, InputLabel } from "@mui/material";
-
+import config from "@config";
 function ClientList({ client_id, dashboards, clients_asociated, setClientsAsociated, setDashboards}) {
   const [open_dialog, setOpenDialog] = useState(false);
   const [selected_dashboard_id, setSelectedDashboardId] = useState("");
@@ -15,17 +15,17 @@ function ClientList({ client_id, dashboards, clients_asociated, setClientsAsocia
   const [available_dashboards, setAvailableDashboards] = useState([]);
   const [assigned_dashboards, setAssignedDashboards] = useState([]);
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   useEffect(() => {
     // Fetch associated client IDs from the backend
     axios
-      .get(`${baseURL}/api/asociatedClients-Admins/${client_id}`)
+      .get(`${base_url}/api/asociatedClients-Admins/${client_id}`)
       .then((response) => {
         const associated_client_ids = response.data;
         // Fetch details of each associated client
         return axios.get(
-          `${baseURL}/api/clients_id-client/${associated_client_ids.join(",")}`
+          `${base_url}/api/clients_id-client/${associated_client_ids.join(",")}`
         );
       })
       .then((response) => {
@@ -63,7 +63,7 @@ function ClientList({ client_id, dashboards, clients_asociated, setClientsAsocia
   const handleAssignDashboard = async () => {
     if (selected_dashboard_id && selected_client_id) {
       axios
-        .post(`${baseURL}/api/assign-dashboard`, {
+        .post(`${base_url}/api/assign-dashboard`, {
           client_id: selected_client_id,
           dashboardId: selected_dashboard_id,
         })
@@ -78,7 +78,7 @@ function ClientList({ client_id, dashboards, clients_asociated, setClientsAsocia
         });
     }
     const dashboards_response = await axios.get(
-        `${baseURL}/api/data/dashboards/${client_id}`
+        `${base_url}/api/data/dashboards/${client_id}`
       );
     setDashboards(dashboards_response.data)
     

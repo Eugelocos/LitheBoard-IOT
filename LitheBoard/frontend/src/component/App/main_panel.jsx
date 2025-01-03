@@ -12,6 +12,7 @@ import LateralMenu from "./Menu/LateralMenu/lateral_menu";
 import { Drawer, Button, Toolbar } from "@mui/material";
 import AlarmList from "./Alarms/alarm_list";
 import ClientList from "./LinkedClients/client_list";
+import config from "@config";
 
 
 function DashboardPanel() {
@@ -27,12 +28,12 @@ function DashboardPanel() {
 
   const [loading, setLoading] = useState(true);
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const userResponse = await axios.get(`${baseURL}/api/user`, {
+        const userResponse = await axios.get(`${base_url}/api/user`, {
           withCredentials: true,
         });
         setUser(userResponse.data);
@@ -42,7 +43,7 @@ function DashboardPanel() {
           userResponse.data.id
         );
         const dashboardsResponse = await axios.get(
-          `${baseURL}/api/data/dashboards/${userResponse.data.id}`
+          `${base_url}/api/data/dashboards/${userResponse.data.id}`
         );
 
         setDashboards(dashboardsResponse.data);
@@ -63,7 +64,7 @@ function DashboardPanel() {
   useEffect(() => {
     const fetchData = async () => {
       axios
-        .get(`${baseURL}/api/alarms/${user?.id}`)
+        .get(`${base_url}/api/alarms/${user?.id}`)
         .then((response) => {
           setAlarms(response.data);
         })
@@ -77,7 +78,7 @@ function DashboardPanel() {
   const fetchNotifications = async () => {
     try {
       const response = await axios.get(
-        `${baseURL}/api/notifications/get/${user.id}`
+        `${base_url}/api/notifications/get/${user.id}`
       );
       const notifications = response.data;
 
@@ -117,12 +118,12 @@ function DashboardPanel() {
       };
 
       await axios.post(
-        `${baseURL}/api/dashboards/set`,
+        `${base_url}/api/dashboards/set`,
         newDashboard
       );
 
       const updatedDashboards = await axios.get(
-        `${baseURL}/api/data/dashboards/${user.id}`
+        `${base_url}/api/data/dashboards/${user.id}`
       );
       setDashboards(updatedDashboards.data);
     } catch (error) {
@@ -154,7 +155,7 @@ function DashboardPanel() {
   const handleLogout = async () => {
     try {
       await axios.post(
-        `${baseURL}/api/logout`,
+        `${base_url}/api/logout`,
         {},
         { withCredentials: true }
       );

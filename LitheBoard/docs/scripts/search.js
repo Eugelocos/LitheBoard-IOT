@@ -71,7 +71,7 @@ async function fetchAllData() {
   const { hostname, protocol, port } = location;
 
   // eslint-disable-next-line no-undef
-  const base = protocol + '//' + hostname + (port !== '' ? ':' + port : '') + baseURL;
+  const base = protocol + '//' + hostname + (port !== '' ? ':' + port : '') + base_url;
   // eslint-disable-next-line no-undef
   const url = new URL('data/search.json', base);
   const result = await fetch(url);

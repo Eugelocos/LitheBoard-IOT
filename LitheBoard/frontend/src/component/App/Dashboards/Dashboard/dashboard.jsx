@@ -17,7 +17,7 @@ import {
 import mqtt from "mqtt";
 import socket from "../../../../socket.js"
 import dayjs from "dayjs";
-
+import config from "@config";
 
 
 function Dashboard(props) {
@@ -42,7 +42,7 @@ function Dashboard(props) {
   const sum_disp_ref = useRef(null);
 
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
 
   function saveWidgetEdition(edited_data) {
@@ -84,7 +84,7 @@ function Dashboard(props) {
 
       // Realizamos la solicitud para editar el widget
       return axios
-        .put(`${baseURL}/api/data/widgets/update/${updated_widget.widget_id}`, updated_widget)
+        .put(`${base_url}/api/data/widgets/update/${updated_widget.widget_id}`, updated_widget)
         .then((response) => {
           console.log("Widget actualizado:", response.data);
 

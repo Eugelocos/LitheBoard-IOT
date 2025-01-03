@@ -1,8 +1,8 @@
 import { io } from "socket.io-client";
+import config from "@config";
 
-
-const socket = io('backend:3007', {
-    origin: `backend:3010`,
+const socket = io('localhost:3007', {
+    origin: `${config.FRONTEND_URL}:${config.FRONTEND_PORT}`,
     methods: ["GET", "POST"],      
     credentials: true,
 });

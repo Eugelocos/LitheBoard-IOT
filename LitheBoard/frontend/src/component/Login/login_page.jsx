@@ -21,6 +21,7 @@ import {
 import { MuiOtpInput } from "mui-one-time-password-input";
 import { IconButton, InputAdornment } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
+import config from "@config";
 
 function Login() {
   axios.defaults.withCredentials = true;
@@ -32,8 +33,8 @@ function Login() {
   const [otp_requested, setOtpRequested] = useState(false);
   const [show_password, setShowPassword] = useState(false);
 
-
-  const baseURL = `http://tonga.mooo.com:3001`;
+console.log(config)
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const togglePasswordVisibility = () => {
     setShowPassword(!show_password);
@@ -43,11 +44,14 @@ function Login() {
     e.preventDefault();
     try {
       const response = await axios.post(
-        'http://tonga.mooo.com:3001/api/login',
+        `${base_url}/api/request-otp`,
         {
           email: form_data.email,
         }
       );
+
+
+      
       console.log("OTP sended:", response.data);
       setOtpRequested(true); 
     } catch (error) {
@@ -64,7 +68,7 @@ function Login() {
     try {
       console.log(user_data.id, "user data #");
       const response = await axios.post(
-        `${baseURL}/api/verify-otp`,
+        `${base_url}/api/verify-otp`,
         {
           client_id: user_data.id, 
           otp: otp,
@@ -83,7 +87,7 @@ function Login() {
     e.preventDefault();
     try {
       const response = await axios.post(
-        `${baseURL}/api/login`,
+        `${base_url}/api/login`,
         form_data
       );
 

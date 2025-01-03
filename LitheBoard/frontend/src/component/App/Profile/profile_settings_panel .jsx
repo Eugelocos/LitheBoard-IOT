@@ -4,7 +4,7 @@ import { styled } from "@mui/material/styles";
 import axios from "axios";
 import LogoutIcon from '@mui/icons-material/Logout';
 import SaveIcon from '@mui/icons-material/Save';
-
+import config from "@config";
 const MyTextField = styled(TextField)({
   "& .MuiFilledInput-underline:after": {
     borderBottomColor: "#232939",
@@ -35,11 +35,11 @@ const ProfileSettingsPanel = ({ user, handleLogout }) => {
   const [email, setEmail] = useState(user?.email);
   const [message, setMessage] = useState({ text: '', isError: false });
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const handleSave = async () => {
     try {
-      const response = await axios.put(`${baseURL}/api/user/update`, {
+      const response = await axios.put(`${base_url}/api/user/update`, {
         id: user.id,
         name,
         email,

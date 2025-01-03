@@ -6,6 +6,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AddDevice from "./add_device";
+import config from "@config";
 
 function DeviceList(props) {
   const [isDeviceListVisible, setDeviceListVisible] = useState(true);
@@ -16,7 +17,7 @@ function DeviceList(props) {
   const [editedPubTopic, setEditedPubTopic] = useState("");
   const [token, setToken] = useState("");
   const { entities, handleAddDevice, setEntities, user } = props;
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const showDeviceList = (showDeviceList) => {
     setDeviceListVisible(showDeviceList);
@@ -34,7 +35,7 @@ function DeviceList(props) {
 
   const handleDelete = async (entity) => {
     try {
-      fetch(`${baseURL}/api/entities/delete/${entity.id}`, {
+      fetch(`${base_url}/api/entities/delete/${entity.id}`, {
         method: "DELETE",
       })
       .then((response) => response.json())
@@ -64,7 +65,7 @@ function DeviceList(props) {
 
         // Envía la solicitud PUT al servidor
         await axios.put(
-          `${baseURL}/api/data/entities/update`,
+          `${base_url}/api/data/entities/update`,
           updatedData
         );
 

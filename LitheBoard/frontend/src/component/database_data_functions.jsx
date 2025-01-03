@@ -1,9 +1,9 @@
 import axios from "axios";
 import Device from "./App/DataStructures/device";
 import React, { useRef, useState, useEffect } from "react";
+import config from "@config";
 
-
-const baseURL = `http://backend:3001`;
+const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 //#region Historicos
 function setDatosHistoricos(
   historial_data,
@@ -12,7 +12,7 @@ function setDatosHistoricos(
   selected_key = null
 ) {
   return axios
-    .post(`${baseURL}/api/data/historic/insert`, historial_data, {
+    .post(`${base_url}/api/data/historic/insert`, historial_data, {
       headers: {
         "Content-Type": "application/json",
       },
@@ -31,7 +31,7 @@ function setDatosHistoricos(
 
 function getHistorialEntity(entity_id) {
   return axios
-    .get(`${baseURL}/api/data/historic/ei/get/${entity_id}`)
+    .get(`${base_url}/api/data/historic/ei/get/${entity_id}`)
     .then((response) => {
       return response.data;
     })
@@ -46,9 +46,9 @@ function getHistorialEntity(entity_id) {
 async function getDashboardWidgets(dashboard_id, client_id) {
   try {
     const [historical_response, entities_response] = await axios.all([
-      axios.get(`${baseURL}/api/data/historic/ci/get/${client_id}`),
+      axios.get(`${base_url}/api/data/historic/ci/get/${client_id}`),
       axios.get(
-        `${baseURL}/api/data/entitiesWidgets/${dashboard_id}/${client_id}`
+        `${base_url}/api/data/entitiesWidgets/${dashboard_id}/${client_id}`
       ),
     ])
 
@@ -95,7 +95,7 @@ async function getDashboardWidgets(dashboard_id, client_id) {
 
 const setWidget = (new_widget, setDevicesList) => {
   return axios
-    .post(`${baseURL}/api/data/widgets/insert`, new_widget)
+    .post(`${base_url}/api/data/widgets/insert`, new_widget)
     .then((response) => {
       console.log("Widget creado:", response.data);
       return response.data;
@@ -109,12 +109,12 @@ const setWidget = (new_widget, setDevicesList) => {
 
 //#region entities
 function setDevice(device_data) {
-  return axios.post(`${baseURL}/api/data/entities/insert`, device_data);
+  return axios.post(`${base_url}/api/data/entities/insert`, device_data);
 }
 
 function getDevice(setEntities, client_id) {
   return axios
-    .get(`${baseURL}/api/data/entities/get`, {
+    .get(`${base_url}/api/data/entities/get`, {
       params: { client_id },
     })
     .then((response) => {

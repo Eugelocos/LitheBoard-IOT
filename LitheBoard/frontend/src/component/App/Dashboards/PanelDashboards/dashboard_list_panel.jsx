@@ -5,7 +5,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import axios from "axios";
-
+import config from "@config";
 
 function DashboardListPanel({
   dashboards,
@@ -18,12 +18,12 @@ function DashboardListPanel({
   const [edited_name, setEditedName] = useState("");
   const [edited_description, setEditedDescription] = useState("");
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
 
 
   const handleDeleteDashboard = (dashboard_id) => {
-    fetch(`${baseURL}/api/dashboards/delete/${dashboard_id}`, {
+    fetch(`${base_url}/api/dashboards/delete/${dashboard_id}`, {
       method: "DELETE",
     })
     .then((response) => response.json())
@@ -51,7 +51,7 @@ function DashboardListPanel({
 
   const handleSaveEdit = async () => {
     try {
-      await axios.put(`${baseURL}/api/dashboards/update`, {
+      await axios.put(`${base_url}/api/dashboards/update`, {
         dashboard_id: selected_dashboard.id,
         name: edited_name,
         description: edited_description,

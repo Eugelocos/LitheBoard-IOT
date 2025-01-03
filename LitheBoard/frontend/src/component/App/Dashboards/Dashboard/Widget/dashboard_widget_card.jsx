@@ -36,6 +36,7 @@ import {
 } from "react-leaflet";
 
 import WidgetCustomValueCard from "./WidgetTypes/widget_custom_value_card";
+import config from "@config";
 
 const IOSSwitch = styled((props) => (
   <Switch focusVisibleClassName=".Mui-focusVisible" disableRipple {...props} />
@@ -107,7 +108,7 @@ function DeviceCard({
   const [chart_size, setchart_size] = useState({ width: 0, height: 0 });
   const [historial, setHistorial] = useState({});
 
-  const baseURL = `http://backend:3001`;
+  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
  
 
   useEffect(() => {
@@ -159,7 +160,7 @@ function DeviceCard({
   const eliminarWidget = () => {
     try {
       fetch(
-        `${baseURL}/api/data/widgets/delete/${device.widget_id}`,
+        `${base_url}/api/data/widgets/delete/${device.widget_id}`,
         {
           method: "DELETE",
         }

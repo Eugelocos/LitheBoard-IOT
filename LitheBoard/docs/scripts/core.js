@@ -628,7 +628,7 @@ function addHrefToSidebarTitle() {
 
     titles.forEach(function (title) {
         // eslint-disable-next-line no-undef
-        title.setAttribute('href', baseURL);
+        title.setAttribute('href', base_url);
     });
 }
 
