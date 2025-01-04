@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Litheboard" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="MQTT Web Dashboard" />
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""/>
+    <title>Litheboard</title>
+    <style>
+      .card_body {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        flex-direction: column;
+        background-color: #fff;
+        border-radius: 90% / 7% 7% 0 0;
+        border-bottom-right-radius: 16px;
+        border-bottom-left-radius: 16px;
+        position: relative;
+        z-index: 4;
+        height: 327px;
+        padding: 12px 24px 0;
+        overflow: hidden;
+        gap: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root" ></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+      <div style="display: flex;">
+
+  <div
+      style="
+        width: 392px;
+        max-height: 500px;
+        height: 100%;
+        border-radius: 16px;
+        background-color: #6179c798;
+        position: relative;
+        border: 1px solid #232939e0;
+        overflow: hidden;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-direction: column;
+          gap: 0.375rem;
+          padding: 1.5rem;
+          text-align: center;
+          padding-top: 1rem;
+          padding-bottom: 1rem;
+          border-top-left-radius: 1.5rem;
+          border-top-right-radius: 1.5rem;
+        "
+      >
+        <div
+          style="
+
+            margin: auto;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            border-radius: 9999px;
+            border: 1px solid transparent;
+            padding-left: 0.625rem;
+            padding-right: 0.625rem;
+            padding-top: 0.125rem;
+            padding-bottom: 0.125rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: #bfdbfe;
+            color: #232939c7;
+          "
+        >
+          Welcome
+        </div>
+        <h3
+          style="
+            white-space: nowrap;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+            color: #232939e0;
+            font-size: 1.5rem;
+            margin-top: 0.5rem;
+          "
+        >
+          Two-Factor Authentication Code
+        </h3>
+      </div>
+      <div
+        class="card__body"
+        style="
+          display: flex;
+          align-items: center;
+          text-align: center;
+          flex-direction: column;
+          background-color: #fff;
+          border-radius: 90% / 7% 7% 0 0;
+          border-bottom-right-radius: 16px;
+          border-bottom-left-radius: 16px;
+          position: relative;
+          z-index: 4;
+          height: 400px;
+          padding: 12px 24px 0;
+          overflow: hidden;
+          gap: 16px;
+        "
+      >
+        <div style="text-align: center; margin-top: 10px">
+          <p style="color: #6b7280; font-size: 0.75rem">
+            This code expires in 5 minutes
+          </p>
+          <p style="color: #1d4ed8; font-size: 2.25rem; font-weight: bold">
+
+
+            564783
+
+            
+          </p>
+          <p style="color: #6b7280; font-size: 0.75rem">
+
+          </p>
+        </div>
+        <div
+          style="
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            height: 16px;
+          "
+        >
+          <div
+            style="
+              display: inline-flex;
+              align-items: center;
+              white-space: nowrap;
+              border-radius: 9999px;
+              border: 1px solid transparent;
+              padding-left: 0.625rem;
+              padding-right: 0.625rem;
+              padding-top: 0.125rem;
+              padding-bottom: 0.125rem;
+              font-size: 0.75rem;
+              font-weight: 600;
+              background-color: #ede9fe;
+              color: #232939e0;
+              margin-top: 0.5rem;
+            "
+          >
+            Enter this code on the verification screen
+          </div>
+        </div>
+
+        <div style="padding: 1.5rem; padding-bottom: 1.5rem">
+          <ul
+            style="
+              display: flex;
+              flex-direction: column;
+              gap: 0.5rem;
+              color: #1d4ed8;
+            "
+          >
+            <li style="display: flex; align-items: center">
+              <p
+                style="
+                  margin-top: 20px;
+                  font-size: 16px;
+                  color: #5c5b5b;
+                  margin: auto;
+                "
+              >
+                If you did not request this code, please disregard this email.
+              </p>
+            </li>
+            <li style="display: flex; align-items: center">
+              <p
+                style="
+                  font-size: 16px;
+                  margin: auto;
+                  color: #5c5b5b;
+                  font-weight: 600;
+                "
+              >
+                Best regards,<br/>The LitheBoard
+                IoT Team
+              </p>
+            </li>
+            <li style="display: flex; align-items: center; margin: auto">
+              <footer style="margin-top: 20px; font-size: 12px; color: #888">
+                <p>
+                  <a
+                    href="https://litheboard.io"
+                    style="color: #007bff; text-decoration: none"
+                    >Visit our website</a
+                  >
+                </p>
+                <p>
+                  This email was sent from an unmonitored mailbox. Please do not
+                  reply directly to this message.
+                </p>
+              </footer>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <table role="presentation" style="width: 392px;background-color: #6179c798; margin: auto 0;  height: 500px; overflow: hidden;   border-spacing: 0; border-collapse:separate;border:solid #232939e0 1px;border-radius:16px;">
+      <tr >
+          <td style="width: 392px; max-height: 500px;   padding: 0px; margin: 20px; ">
+              <table role="presentation" style="width: 100%; border-collapse: collapse; height: 100%; ">
+                  <tr style="height: 100px;">
+                      <td style="text-align: center;  vertical-align: top; padding: 1.5rem; padding-top: 1rem; padding-bottom: 1rem; border-top-left-radius: 1.5rem; border-top-right-radius: 1.5rem;">
+                          <div style="background-color: #d4e2f7; color: #0073e6; padding: 2px 10px; border-radius: 9999px; display: inline-block; font-size: 12px;">Welcome</div>
+                          <h3 style="font-size: 24px; color: #232939e0; margin-top: 14px; font-weight: 600; white-space: nowrap; letter-spacing: -0.025rem; white-space: nowrap;">Two-Factor Authentication Code</h3>
+                      </td>
+                  </tr>
+                  <tr>
+                      <td style="text-align: center; vertical-align: top; background-color: #fff; border-radius: 90% / 7% 7% 0 0; padding: 12px 24px; overflow: hidden; ">
+                          <p style="    color: #6b7280;font-size: 0.75rem; margin-top: 10px;">This code expires in 5 minutes</p>
+                          <p style="    font-size: 2.25rem;color: #232939; font-weight: bold; letter-spacing: 5px; ">564783</p>
+                          <z style="height:16px; margin-bottom: 16px;">
+                            <p style="width:fit-content; align-items: center;white-space: nowrap;border-radius: 9999px;border: 1px solid transparent;padding-left: 0.625rem;padding-right: 0.625rem;padding-top: 0.125rem;padding-bottom: 0.125rem;font-size: 0.75rem;font-weight: 600;background-color: #ede9fe;color: #232939e0;margin: auto;margin-top: 1rem;">Enter this code on the verification screen</p>
+                          </z>
+                          
+
+                          <ul style="list-style-type: none; padding: 0; margin: 0;margin-top: 33px; font-size: 12px; color: #777;">
+                              <li style="margin-top: 20px;font-size: 16px;color: #5c5b5b;margin: auto; margin-bottom: 8px;">
+                                  <p>If you did not request this code, please disregard this email.</p>
+                              </li>
+                              <li style="font-size: 16px;margin: auto;color: #5c5b5b;font-weight: 600; margin-bottom: 8px;">
+                                  <p>Best regards,<br />The LitheBoard IoT Team</p>
+                              </li>
+                              <li style="display: flex; align-items: center; margin: auto">
+                                <footer style="margin-top: 20px; font-size: 12px; color: #888">
+                                  <p>
+                                    <a
+                                      href="https://litheboard.io"
+                                      style="color: #007bff; text-decoration: none"
+                                      >Visit our website</a
+                                    >
+                                  </p>
+                                  <p>
+                                    This email was sent from an unmonitored mailbox. Please do not
+                                    reply directly to this message.
+                                  </p>
+                                </footer>
+                              </li>
+                          </ul>                          
+                      </td>
+                   
+                  </tr>
+              </table>
+          </td>
+      </tr>
+  </table>
+      </div>
+  
+
+  </body>
+</html>

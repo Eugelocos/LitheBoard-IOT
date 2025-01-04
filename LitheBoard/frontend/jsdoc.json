@@ -1,0 +1,25 @@
+{
+  "source": {
+    "include": ["backend"],
+    "includePattern": ".*\\.js$",
+    "excludePattern": "(node_modules|dist)"
+  },
+  "opts": {
+    "destination": "./docs",
+    "template": "node_modules/clean-jsdoc-theme",
+    "recurse": true
+  },
+  "templates": {
+    "cleans": {
+      "theme": "fallblack"
+    },
+    "theme_opts": {
+      "favicon": "./logo_litheboard.png",
+      "homepageTitle": "Litheboard Docs"
+    }
+  },
+  "plugins": [],
+  "tags": {
+    "allowUnknownTags": true
+  }
+}
