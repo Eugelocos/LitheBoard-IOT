@@ -89,7 +89,6 @@ const IOSSwitch = styled((props) => (
   },
 }));
 
-
 function DeviceCard({
   device,
   index,
@@ -109,34 +108,30 @@ function DeviceCard({
   const [historial, setHistorial] = useState({});
 
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
- 
 
   useEffect(() => {
     setConfig(device.config);
-  }, [device.entity_id]);
-
-
+  }, [device.config, device.entity_id]);
 
   useEffect(() => {
     if (device.historial && device.config?.selected_key) {
       setHistorial(() => {
         const filteredHistorial = device.historial.filter((entry) => {
           const data = entry.data || {};
-          const hasKey = Object.prototype.hasOwnProperty.call(data, device.config.selected_key);
-          return hasKey; 
+          const hasKey = Object.prototype.hasOwnProperty.call(
+            data,
+            device.config.selected_key
+          );
+          return hasKey;
         });
 
-
-        return filteredHistorial.slice(-20); 
+        return filteredHistorial.slice(-20);
       });
     } else {
       setHistorial([]);
     }
     setis_loading(false);
   }, [device.widget_type, device.historial, device.config?.selected_key]);
-  
-  
-  
 
   useEffect(() => {
     const updateSize = () => {
@@ -154,17 +149,11 @@ function DeviceCard({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-
-
-
   const eliminarWidget = () => {
     try {
-      fetch(
-        `${base_url}/api/data/widgets/delete/${device.widget_id}`,
-        {
-          method: "DELETE",
-        }
-      )
+      fetch(`${base_url}/api/data/widgets/delete/${device.widget_id}`, {
+        method: "DELETE",
+      })
         .then((response) => response.json())
         .then((data) => {
           if (data.message === "Widget deleted successfully") {
@@ -181,7 +170,7 @@ function DeviceCard({
   };
 
   function editWidget() {
-    console.log("device.widget_id : ", device.widget_id)
+    console.log("device.widget_id : ", device.widget_id);
     setEditedWidgetId(device.widget_id);
     setEditedWidgetType(device.widget_type);
     openWidgetEditor(true);
@@ -190,10 +179,6 @@ function DeviceCard({
   const formatXAxis = (tickItem) => {
     return dayjs(tickItem).format("DD/MM");
   };
-
-
-
-
 
   return (
     <Card
@@ -223,17 +208,43 @@ function DeviceCard({
           <Typography variant="h5">{device.widget_name}</Typography>
           <Tooltip
             title={
-              <div>
+              device.config?.datasource_type === "MQTT" ? (
+                <div>
+                  <Typography variant="body2">
+                    Subscribed Topic: {device.config?.sub_topic || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Publish Topic: {device.config?.pub_topic || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Associated Entity Name:{" "}
+                    {device.config?.entity_name || "N/A"}
+                  </Typography>
+                </div>
+              ) : device.config?.datasource_type === "API" ? (
+                <div>
+                  <Typography variant="body2">
+                    Base URL:{" "}
+                    {device.config?.datasource_config?.base_url || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Endpoint:{" "}
+                    {device.config?.datasource_config?.endpoint || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Method: {device.config?.datasource_config?.method || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Polling Interval:{" "}
+                    {device.config?.datasource_config?.polling_interval ||
+                      "N/A"}
+                  </Typography>
+                </div>
+              ) : (
                 <Typography variant="body2">
-                  Subscribed Topic : {device.config?.sub_topic || "N/A"}
+                  No valid datasource type
                 </Typography>
-                <Typography variant="body2">
-                  Publish Topic : {device.config?.pub_topic || "N/A"}
-                </Typography>
-                <Typography variant="body2">
-                  Associated Entity Name : {device.config?.entity_name || "N/A"}
-                </Typography>
-              </div>
+              )
             }
           >
             <IconButton>
@@ -458,28 +469,31 @@ function DeviceCard({
                 id="customValueCard"
               >
                 <WidgetCustomValueCard
-value={
-  device.historial && device.historial.length > 0
-    ? (() => {
-        const selectedKey = device.config?.selected_key;
+                  value={
+                    device.historial && device.historial.length > 0
+                      ? (() => {
+                          const selectedKey = device.config?.selected_key;
 
-        // Encuentra la última entrada con la clave seleccionada
-        const lastEntryWithKey = [...device.historial]
-          .reverse()
-          .find((entry) => Object.prototype.hasOwnProperty.call(entry.data || {}, selectedKey));
+                          // Encuentra la última entrada con la clave seleccionada
+                          const lastEntryWithKey = [...device.historial]
+                            .reverse()
+                            .find((entry) =>
+                              Object.prototype.hasOwnProperty.call(
+                                entry.data || {},
+                                selectedKey
+                              )
+                            );
 
-        if (lastEntryWithKey) {
-          return lastEntryWithKey.data[selectedKey];
-        } else if (selectedKey) {
-          return `Key "${selectedKey}" not found in any data entry`;
-        } else {
-          return "No key selected";
-        }
-      })()
-    : "No data available"
-}
-
-
+                          if (lastEntryWithKey) {
+                            return lastEntryWithKey.data[selectedKey];
+                          } else if (selectedKey) {
+                            return `Key "${selectedKey}" not found in any data entry`;
+                          } else {
+                            return "No key selected";
+                          }
+                        })()
+                      : "No data available"
+                  }
                   html={device.config?.scriptHtml || ""}
                   css={device.config?.scriptCss || ""}
                 ></WidgetCustomValueCard>

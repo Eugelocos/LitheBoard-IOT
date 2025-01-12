@@ -55,7 +55,11 @@ async function getDashboardWidgets(dashboard_id, client_id) {
     const devices = entities_response.data
       .map((data) => {
         try {
-          const config = JSON.parse(data.config_data || "{}");
+          console.log("dataaaaaaaaaaa",data)
+          const config = {
+            ...JSON.parse(data.config_data),  // Propiedades de config_data
+            ...data.config        // Propiedades de config
+          };
           const entity_history  = historical_response.data.filter(
             (historial) =>
               historial.entity_id === data.entity_id
@@ -69,7 +73,6 @@ async function getDashboardWidgets(dashboard_id, client_id) {
             entity_history , // Asume que historial está vacío por ahora
             config
           );
-
           new_device.widget_id=data.widget_id;
           return new_device;
         } catch (parseError) {

@@ -50,14 +50,13 @@ services:
       - "18083:18083"
       - "1883:1883"
     environment:
-      - EMQX_NAME=emqx
-      - EMQX_LISTENER__TCP__EXTERNAL__ADDRESS=:1883
-      - EMQX_WEB_LISTENER__HTTP__EXTERNAL__ADDRESS=:18083
-      - EMQX_AUTH__AUTHENTICATOR__PASSWORD__ENABLED= "true" 
-      - EMQX_AUTH__AUTHENTICATOR__PASSWORD__USER= "litheboard_admin"  # Establece el nombre de usuario
-      - EMQX_AUTH__AUTHENTICATOR__PASSWORD__PASSWORD= "pepelithe" 
+      EMQX_LOADED_PLUGINS: "emqx_auth_username"
+      EMQX_AUTH__USER__1__USERNAME: "admin"
+      EMQX_AUTH__USER__1__PASSWORD: "admin123"
+    depends_on:
+      - mysql
     networks:
-    - litheboard-network
+      - litheboard-network
 
   # MySQL Database
   mysql:

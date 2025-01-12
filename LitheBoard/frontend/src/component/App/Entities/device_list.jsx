@@ -1,91 +1,99 @@
 import { useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { IconButton, Drawer, TextField, Button, Tooltip, Toolbar } from "@mui/material";
+import {
+  IconButton,
+  Drawer,
+  TextField,
+  Button,
+  Tooltip,
+  Toolbar,
+} from "@mui/material";
 import axios from "axios";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AddDevice from "./add_device";
 import config from "@config";
+import StatusBadge from "../../status_badge";
 
 function DeviceList(props) {
   const [isDeviceListVisible, setDeviceListVisible] = useState(true);
   const [drawer_open, setDrawerOpen] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
-  const [edited_name, setEditedName] = useState("");
-  const [editedSubTopic, setEditedSubTopic] = useState("");
-  const [editedPubTopic, setEditedPubTopic] = useState("");
+  const [editedName, setEditedName] = useState("");
+  const [editedConfig, setEditedConfig] = useState({});
   const [token, setToken] = useState("");
   const { entities, handleAddDevice, setEntities, user } = props;
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
-  const showDeviceList = (showDeviceList) => {
-    setDeviceListVisible(showDeviceList);
+  const [status, setStatus] = useState(0); // 0: initial, 1: loading, 2: success, 3: error
+
+  const showDeviceList = (show) => {
+    setDeviceListVisible(show);
   };
 
   const handleEditClick = (device) => {
     setSelectedDevice(device);
     setEditedName(device.disp_name);
-    setEditedSubTopic(device.sub_topic);
-    setEditedPubTopic(device.pub_topic);
-    setToken(device.token);
-    console.log("DEVICE" ,device)
+    setEditedConfig(
+      entities.find((entity) => entity.entity_id === device.id)
+        .datasource_config
+    );
+    setToken(
+      entities.find((entity) => entity.entity_id === device.id)
+        .datasource_config?.token || ""
+    );
     setDrawerOpen(true);
   };
 
   const handleDelete = async (entity) => {
     try {
-      fetch(`${base_url}/api/entities/delete/${entity.id}`, {
+      await fetch(`${base_url}/api/entities/delete/${entity.entity_id}`, {
         method: "DELETE",
       })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.message === "Entity deleted succesfully") {
-          // Actualiza la lista de dashboards en el estado local
-          setEntities((preventities) => preventities.filter(dispositivo => dispositivo.entity_id !== entity.id));
-        }
-      })
-      .catch((error) => {
-        console.error("Error en la solicitud:", error);
-      });
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.message === "Entity deleted successfully") {
+            setEntities((prevEntities) =>
+              prevEntities.filter(
+                (device) => device.entity_id !== entity.entity_id
+              )
+            );
+          }
+        })
+        .catch((error) => {
+          console.error("Error in request:", error);
+        });
     } catch (error) {
       console.error("Error deleting entity:", error);
     }
-  }
+  };
 
   const handleSaveEdit = async () => {
     if (selectedDevice) {
+      setStatus(1)
       try {
         const updatedData = {
           entity_id: selectedDevice.id,
-          disp_name: edited_name,
-          sub_topic: editedSubTopic,
-          pub_topic: editedPubTopic,
+          disp_name: editedName,
+          datasource_config: { ...editedConfig },
         };
+        console.log("updated data : ", updatedData);
+        await axios.put(`${base_url}/api/data/entities/update`, updatedData);
 
-        // Envía la solicitud PUT al servidor
-        await axios.put(
-          `${base_url}/api/data/entities/update`,
-          updatedData
+        const updatedEntities = entities.map((device) =>
+          device.entity_id === selectedDevice.entity_id
+            ? { ...device, ...updatedData }
+            : device
         );
 
-        const updatedentities = entities.map((disp) =>
-          disp.entity_id === selectedDevice.id
-            ? {
-                ...disp,
-                disp_name: edited_name,
-                sub_topic: editedSubTopic,
-                pub_topic: editedPubTopic,
-              }
-            : disp
-        );
-
-        setEntities(updatedentities);
-
-        // Cierra el drawer
+        setEntities(updatedEntities);
+        setStatus(2)
         setDrawerOpen(false);
         setSelectedDevice(null);
+
       } catch (error) {
+        setStatus(3)
         console.error("Error updating device:", error);
       }
     }
@@ -95,11 +103,10 @@ function DeviceList(props) {
     setDrawerOpen(false);
     setSelectedDevice(null);
   };
-
   const columns = [
     { field: "disp_name", headerName: "Nombre", flex: 1 },
-    { field: "sub_topic", headerName: "Subscribe Topic", flex: 1 },
-    { field: "pub_topic", headerName: "Public Topic", flex: 1 },
+    { field: "datasource_type", headerName: "Datasource Type", flex: 1 },
+    { field: "datasource_config", headerName: "Datasource Config", flex: 1 },
     {
       field: "actions",
       headerName: "Acciones",
@@ -110,7 +117,7 @@ function DeviceList(props) {
             className="text-my-blue hover:text-red-900 "
             onClick={(e) => {
               e.stopPropagation();
-              handleDelete(params.row)
+              handleDelete(params.row);
             }}
           >
             <DeleteIcon />
@@ -132,15 +139,15 @@ function DeviceList(props) {
   const rows = entities.map((disp, index) => ({
     id: disp?.entity_id,
     disp_name: disp.disp_name,
-    sub_topic: disp.sub_topic,
-    pub_topic: disp.pub_topic,
-    token: disp.token,
+    datasource_type: disp.datasource_type,
+    datasource_config: JSON.stringify(disp.datasource_config),
+    token: disp.config,
   }));
-
+  console.log("rows", rows);
   return (
     <>
       {isDeviceListVisible ? (
-    <div className="device-list-panel h-full overflow-hidden overflow-x-auto  bg-white border border-gray-300 rounded p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1) h-[90%]">
+        <div className="device-list-panel h-full overflow-hidden overflow-x-auto  bg-white border border-gray-300 rounded p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1) h-[90%]">
           <div className="flex justify-between items-center py-2 px-4">
             <h2 className=" font-medium text-gray-900 text-xl">Entities</h2>
             <button
@@ -181,59 +188,158 @@ function DeviceList(props) {
         onClose={handleCancelEdit}
         sx={{
           "& .MuiDrawer-paper": {
-            width: "400px", // Ancho del Drawer
-            backgroundColor: "#f5f5f5", // Color de fondo del Drawer
+            zIndex: 1400,
+            width: "400px",
+            backgroundColor: "#f5f5f5",
           },
         }}
       >
         <div className="h-full flex-wrap flex content-between">
-          <div className="bg-opacity-10 bg-slate-300">
-          <Toolbar className="w-full h-fit mt-[64px]  flex-col flex m-4 ">
-            <h2 className="font-medium text-gray-900 text-xl w-full">
-              Editar Dispositivo
-            </h2>
-            <Tooltip title="Coloca este token en el json del dispositivo">
-              <p className="italic">{token}</p>
-            </Tooltip>
-          </Toolbar>            
+          <div className="bg-opacity-10">
+            <Toolbar className="w-full h-fit mt-[64px] flex-col flex m-4">
+              <h2 className="font-medium text-gray-900 text-xl inline">
+                Edit{" "}
+                <span className="font-normal text-gray-700">
+                  {selectedDevice?.datasource_type}
+                </span>{" "}
+                entity
+              </h2>
+
+              <Tooltip title="Place this token in the message sent by the device.">
+                <p className="italic">{token}</p>
+              </Tooltip>
+            </Toolbar>
           </div>
 
-
-          <div className="flex flex-wrap items-center h-[40%] w-full m-4">
+          <div className="flex flex-wrap items-center h-[40%] w-full m-4 overflow-y-auto">
             <TextField
               autoFocus
               margin="dense"
-              label="Nombre"
+              label="Name"
               fullWidth
-              value={edited_name}
+              value={editedName}
               variant="filled"
               onChange={(e) => setEditedName(e.target.value)}
             />
-            <TextField
-              margin="dense"
-              label="Subscribe Topic"
-              variant="filled"
-              fullWidth
-              value={editedSubTopic}
-              onChange={(e) => setEditedSubTopic(e.target.value)}
-            />
-            <TextField
-              margin="dense"
-              label="Public Topic"
-              variant="filled"
-              fullWidth
-              value={editedPubTopic}
-              onChange={(e) => setEditedPubTopic(e.target.value)}
-            />
+            {selectedDevice?.datasource_type === "MQTT" && (
+              <>
+                <TextField
+                  margin="dense"
+                  label="Subscribe Topic"
+                  variant="filled"
+                  fullWidth
+                  value={editedConfig.sub_topic || ""}
+                  onChange={(e) =>
+                    setEditedConfig({
+                      ...editedConfig,
+                      sub_topic: e.target.value,
+                    })
+                  }
+                />
+                <TextField
+                  margin="dense"
+                  label="Publish Topic"
+                  variant="filled"
+                  fullWidth
+                  value={editedConfig.pub_topic || ""}
+                  onChange={(e) =>
+                    setEditedConfig({
+                      ...editedConfig,
+                      pub_topic: e.target.value,
+                    })
+                  }
+                />
+              </>
+            )}
+            {selectedDevice?.datasource_type === "API" && (
+              <div>
+                <TextField
+                  margin="dense"
+                  label="Base URL"
+                  variant="filled"
+                  fullWidth
+                  value={editedConfig.base_url || ""}
+                  onChange={(e) =>
+                    setEditedConfig({
+                      ...editedConfig,
+                      base_url: e.target.value,
+                    })
+                  }
+                />
+                <TextField
+                  margin="dense"
+                  label="HTTP Method"
+                  variant="filled"
+                  fullWidth
+                  value={editedConfig.method || ""}
+                  onChange={(e) =>
+                    setEditedConfig({ ...editedConfig, method: e.target.value })
+                  }
+                />
+                <TextField
+                  margin="dense"
+                  label="Polling Interval"
+                  variant="filled"
+                  fullWidth
+                  value={editedConfig.polling_interval || ""}
+                  onChange={(e) =>
+                    setEditedConfig({
+                      ...editedConfig,
+                      polling_interval: e.target.value,
+                    })
+                  }
+                />
+                <TextField
+                  margin="dense"
+                  label="Query Params"
+                  variant="filled"
+                  fullWidth
+                  value={JSON.stringify(editedConfig.query_params) || ""}
+                  onChange={(e) =>
+                    setEditedConfig({
+                      ...editedConfig,
+                      query_params: e.target.value,
+                    })
+                  }
+                />
+                <TextField
+                  margin="dense"
+                  label="Headers"
+                  variant="filled"
+                  fullWidth
+                  value={JSON.stringify(editedConfig.headers) || ""}
+                  onChange={(e) =>
+                    setEditedConfig({
+                      ...editedConfig,
+                      headers: e.target.value,
+                    })
+                  }
+                />
+                <TextField
+                  margin="dense"
+                  label="Request Body"
+                  variant="filled"
+                  fullWidth
+                  value={JSON.stringify(editedConfig.request_body) || ""}
+                  onChange={(e) =>
+                    setEditedConfig({
+                      ...editedConfig,
+                      request_body: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end mt-4 items-end w-full">
             <Button onClick={handleCancelEdit} color="primary">
-              Cancelar
+              Cancel
             </Button>
             <Button onClick={handleSaveEdit} color="primary">
-              Guardar
+              Save
             </Button>
+            <StatusBadge status={status}/>
           </div>
         </div>
       </Drawer>

@@ -1,0 +1,52 @@
+authentication = [
+  {
+    backend = built_in_database
+    mechanism = password_based
+    password_hash_algorithm {name = sha256, salt_position = suffix}
+    user_id_type = username
+  }
+]
+authorization {
+  cache {
+    enable = true
+    excludes = []
+    max_size = 32
+    ttl = "1m"
+  }
+  deny_action = ignore
+  no_match = allow
+  sources = [
+    {max_rules = 100, type = built_in_database},
+    {
+      enable = true
+      path = "${EMQX_ETC_DIR}/acl.conf"
+      type = file
+    }
+  ]
+}
+log {
+  console {
+    enable = true
+    formatter = text
+    level = debug
+    payload_encode = text
+    time_offset = system
+    timestamp_format = auto
+  }
+  file {
+    default {
+      enable = false
+      formatter = text
+      level = warning
+      path = "${EMQX_LOG_DIR}/emqx.log"
+      payload_encode = text
+      rotation_count = 10
+      rotation_size = "50MB"
+      time_offset = system
+      timestamp_format = auto
+    }
+  }
+  throttling {
+    time_window = "1m"
+  }
+}

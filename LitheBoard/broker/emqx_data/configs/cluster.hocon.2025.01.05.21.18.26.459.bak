@@ -1,0 +1,29 @@
+authentication = [
+  {
+    backend = mysql
+    database = litheboard_db
+    enable = true
+    mechanism = password_based
+    password = rootpassword
+    password_hash_algorithm {name = sha256, salt_position = suffix}
+    pool_size = 8
+    query = "SELECT password_hash, salt FROM mqtt_user where username = ${username} LIMIT 1"
+    query_timeout = "5s"
+    server = "127.0.0.1:3306"
+    ssl {
+      ciphers = []
+      depth = 10
+      enable = false
+      hibernate_after = "5s"
+      log_level = notice
+      reuse_sessions = true
+      secure_renegotiate = true
+      verify = verify_peer
+      versions = [
+        "tlsv1.3",
+        "tlsv1.2"
+      ]
+    }
+    username = litheboard_user
+  }
+]

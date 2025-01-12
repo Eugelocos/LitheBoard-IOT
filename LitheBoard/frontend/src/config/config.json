@@ -1,7 +1,7 @@
 {
-    "BACKEND_URL": "http://localhost",
+    "BACKEND_URL": "http://tongavla.mooo.com",
     "WS_PORT": 3010,
     "BACKEND_API_PORT": 3001,
-    "FRONTEND_URL": "http://localhost",
+    "FRONTEND_URL": "http://tongavla.mooo.com",
     "FRONTEND_PORT": 3000
 }

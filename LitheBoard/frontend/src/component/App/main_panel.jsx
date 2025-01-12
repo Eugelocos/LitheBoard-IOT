@@ -29,13 +29,14 @@ function DashboardPanel() {
   const [loading, setLoading] = useState(true);
 
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
-
+  console.log(user)
   useEffect(() => {
     const fetchData = async () => {
       try {
         const userResponse = await axios.get(`${base_url}/api/user`, {
           withCredentials: true,
         });
+        console.log("user repsone",userResponse);
         setUser(userResponse.data);
 
         const devicesResponse = await getDevice(
@@ -59,7 +60,7 @@ function DashboardPanel() {
     };
 
     fetchData();
-  }, []);
+  }, [base_url, navigate]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,7 +74,7 @@ function DashboardPanel() {
         });
     };
     fetchData();
-  }, [user]);
+  }, [user, base_url]);
 
   const fetchNotifications = async () => {
     try {
@@ -169,6 +170,7 @@ function DashboardPanel() {
 
   const handleToggleDrawer = () => {
     setDrawerOpen(!drawer_open);
+
   };
 
   if (loading) {
@@ -258,6 +260,7 @@ function DashboardPanel() {
         <LateralMenu
           handleSwitchSection={handleSwitchSection}
           dashboards={dashboards}
+          user={user}
         />
       </Drawer>
       {
@@ -331,7 +334,7 @@ function DashboardPanel() {
             ></AlarmList>
           </div>
 
-          {user?.access_level_id == 1 ? (
+          {user?.access_level_id === 1 ? (
             <div
               className="clients-settings min-[500px]:p-10 px-30 h-full"
               style={{ display: "none" }}

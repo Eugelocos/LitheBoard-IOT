@@ -1,20 +1,32 @@
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise'); // Usamos la versión prometida
 
-function initialize(entity, eventEmitter) {
-    const connection = mysql.createConnection(entity.datasource_config.config.dbConfig);
-    const interval = entity.datasource_config.config.pollingInterval || 10000;
+async function initialize(entity, eventEmitter) {
+    try {
+        // Crear la conexión usando la versión prometida de mysql2
+        const connection = await mysql.createConnection(entity.datasource_config.dbConfig);
+        const interval = entity.datasource_config.pollingInterval || 10000;
 
-    const pollDatabase = async () => {
-        connection.query(entity.datasource_config.config.query, (error, results) => {
-            if (error) {
+        const pollDatabase = async () => {
+            try {
+                // Verificar que la consulta es válida
+                if (!entity.datasource_config.query) {
+                    throw new Error('No se encontró una consulta en entity.datasource_config.query');
+                }
+
+                // Ejecutar la consulta utilizando la interfaz prometida
+                const [results] = await connection.query(entity.datasource_config.query);
+                eventEmitter.emit('datasourceEvent', { entity, data: results, source: 'DB' });
+            } catch (error) {
                 console.error(`DB Error for entity ${entity.entity_id}:`, error.message);
-                return;
+            } finally {
+                setTimeout(pollDatabase, interval);
             }
-            eventEmitter.emit('datasourceEvent', { entity, data: results, source: 'db' });
-        });
-    };
+        };
 
-    setInterval(pollDatabase, interval);
+        pollDatabase();
+    } catch (error) {
+        console.error('Error initializing DatasourceController:', error.message);
+    }
 }
 
 module.exports = { initialize };

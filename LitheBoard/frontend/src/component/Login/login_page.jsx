@@ -22,6 +22,7 @@ import { MuiOtpInput } from "mui-one-time-password-input";
 import { IconButton, InputAdornment } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import config from "@config";
+import StatusBadge from "../status_badge";
 
 function Login() {
   axios.defaults.withCredentials = true;
@@ -33,7 +34,9 @@ function Login() {
   const [otp_requested, setOtpRequested] = useState(false);
   const [show_password, setShowPassword] = useState(false);
 
-console.log(config)
+  const [status, setStatus] = useState(0); // 0: initial, 1: loading, 2: success, 3: error
+
+  console.log(config);
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const togglePasswordVisibility = () => {
@@ -41,65 +44,56 @@ console.log(config)
   };
 
   const handleRequestOtp = async (e) => {
+    setStatus(1);
     e.preventDefault();
     try {
-      const response = await axios.post(
-        `${base_url}/api/request-otp`,
-        {
-          email: form_data.email,
-        }
-      );
+      const response = await axios.post(`${base_url}/api/request-otp`, {
+        email: form_data.email,
+      });
+      setStatus(2);
 
-
-      
       console.log("OTP sended:", response.data);
-      setOtpRequested(true); 
+      setOtpRequested(true);
+      setStatus(0);
     } catch (error) {
       console.error("Error requesting OTP:", error);
-      setError(
-        error.response ? error.response.data.message : "Unknown error"
-      );
+      setStatus(3);
+      setError(error.response ? error.response.data.message : "Unknown error");
     }
   };
 
   const handleVerifyOtp = async (e) => {
+    setStatus(1);
     e.preventDefault();
     console.log(otp);
     try {
       console.log(user_data.id, "user data #");
-      const response = await axios.post(
-        `${base_url}/api/verify-otp`,
-        {
-          client_id: user_data.id, 
-          otp: otp,
-        }
-      );
+      const response = await axios.post(`${base_url}/api/verify-otp`, {
+        client_id: user_data.id,
+        otp: otp,
+      });
+      setStatus(2);
       setLoggedIn(true);
-      localStorage.setItem("user", JSON.stringify(user_data)); 
+      localStorage.setItem("user", JSON.stringify(user_data));
     } catch (error) {
-      setError(
-        error.response ? error.response.data.message : "Unknown error"
-      );
+      setStatus(3);
+      setError(error.response ? error.response.data.message : "Unknown error");
     }
   };
 
-  const handleLogin = async (e) => {   // CHANGE TO PREVENT SECURITY GAP from /login to /dashboard
+  const handleLogin = async (e) => {
+    // CHANGE TO PREVENT SECURITY GAP from /login to /dashboard
     e.preventDefault();
     try {
-      const response = await axios.post(
-        `${base_url}/api/login`,
-        form_data
-      );
+      const response = await axios.post(`${base_url}/api/login`, form_data);
 
       setUserData(response.data.user);
 
-      localStorage.setItem("user", JSON.stringify(response.data.user)); 
+      localStorage.setItem("user", JSON.stringify(response.data.user));
       await handleRequestOtp(e);
     } catch (error) {
       console.error("Log in error:", error);
-      setError(
-        error.response ? error.response.data.message : "Unknown error"
-      );
+      setError(error.response ? error.response.data.message : "Unknown error");
     }
   };
 
@@ -193,12 +187,9 @@ console.log(config)
                         } font-semibold py-2 text-center m-auto my-2 self-start text-base`}
                       >
                         Verify
-                        {error && (
-                          <span className="block mt-2 text-white text-sm">
-                            {error}
-                          </span>
-                        )}
                       </button>
+                      <StatusBadge status={status} />
+
                       <div className="inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 py-[0.125rem] font-semibold bg-[#ede9fe] text-[#888] self-end bottom-0 mx-auto">
                         <Typography variant="body2" align="center">
                           ¿No tienes una cuenta?{" "}
@@ -282,7 +273,10 @@ console.log(config)
                       autoComplete="current-password"
                       value={form_data.password}
                       onChange={(e) =>
-                        setFormData({ ...form_data, password: e.target.value.trim() })
+                        setFormData({
+                          ...form_data,
+                          password: e.target.value.trim(),
+                        })
                       }
                       InputLabelProps={{ style: { color: "#292323" } }}
                       InputProps={{
@@ -312,17 +306,13 @@ console.log(config)
                     >
                       <button
                         type="submit"
-                        className={`w-[256px] rounded-full ${
-                          error ? "bg-[#df6d6c]" : "bg-blue-500"
-                        } font-semibold py-2 text-center m-auto my-2 self-start text-base`}
+                        className={`w-[256px] rounded-full "bg-blue-500"
+                         font-semibold py-2 text-center m-auto my-2 self-start text-base`}
                       >
                         Login
-                        {error && (
-                          <span className="block mt-2 text-white text-sm">
-                            {error}
-                          </span>
-                        )}
                       </button>
+
+                      <StatusBadge status={status} />
                       <div className="inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 py-[0.125rem] font-semibold bg-[#ede9fe] text-[#888] self-end bottom-0 mx-auto">
                         <Typography variant="body2" align="center">
                           ¿No tienes una cuenta?{" "}
