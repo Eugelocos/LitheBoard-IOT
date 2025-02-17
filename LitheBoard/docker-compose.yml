@@ -41,6 +41,8 @@ services:
       - EMQX_NODE__SET_COOKIE=secure-cookie-value-1234
     networks:
       - litheboard-network
+    depends_on:
+      - mysql
 
   # EMQX Broker
   emqx:

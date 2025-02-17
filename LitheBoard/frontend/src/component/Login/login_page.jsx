@@ -304,15 +304,15 @@ function Login() {
                     <div
                       className={`flex justify-start items-center h-[111px] flex-wrap`}
                     >
-                      <button
+                      <Button
                         type="submit"
                         className={`w-[256px] rounded-full "bg-blue-500"
                          font-semibold py-2 text-center m-auto my-2 self-start text-base`}
                       >
                         Login
-                      </button>
+                      </Button>
 
-                      <StatusBadge status={status} />
+                      
                       <div className="inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 py-[0.125rem] font-semibold bg-[#ede9fe] text-[#888] self-end bottom-0 mx-auto">
                         <Typography variant="body2" align="center">
                           ¿No tienes una cuenta?{" "}

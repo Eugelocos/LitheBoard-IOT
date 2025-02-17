@@ -1,173 +1,148 @@
-require("dotenv").config();
-const mqtt = require("mqtt");
-const readline = require("readline");
+const mqtt = require('mqtt');
 
-const TEST_CLIENT_ID = "4";
-const TEST_ENTITY_ID = "228";
-const TEST_SUB_TOPIC = `pr3pu`;
-const TEST_SYNC_TOPIC = `users/${TEST_CLIENT_ID}/devices/${TEST_ENTITY_ID}/sync`;
-const TEST_REQUEST_TOPIC = `users/${TEST_CLIENT_ID}/devices/${TEST_ENTITY_ID}/requestState`;
+// Configuración
+const userId = '4'; // ID del usuario
+const entityId = '228'; // ID de la entidad
+const brokerUrl = 'mqtt://tongavla.mooo.com:47851'; // Reemplázalo con tu broker MQTT
+const deviceState = {
+  status: 'on', // Estado inicial del dispositivo
+  brightness: 80, // Ejemplo de propiedad
+};
 
-let mqttClient = null;
-let simulatedState = { temperature: 25, humidity: 50 };
-let isDisconnected = false;
+// Conexión al broker MQTT
+const client = mqtt.connect(brokerUrl, {
+  username: "litheboard_admin",
+  password: "pepelithe",
+});
 
-function initializeTestClient() {
-    mqttClient = mqtt.connect("mqtt://tongavla.mooo.com:47851", {
-        username: "litheboard_admin",
-        password: "pepelithe",
-    });
+// Tópicos
+const topics = {
+  dataDevice: `users/${userId}/device/${entityId}/data/device`,
+  requestsPlatform: `users/${userId}/device/${entityId}/requests/platform`,
+  heartbeat: `users/${userId}/device/${entityId}/heartbeat/device`,
+  dataPlatform: `users/${userId}/device/${entityId}/data/platform`,
+  requestsDevice: `users/${userId}/device/${entityId}/requests/device`,
+};
 
-    mqttClient.on("connect", () => {
-        console.log("Device connected to MQTT broker.");
-        publishReconnectionStatus();
-        subscribeToTestTopics();
-        startSendingHeartbeat();
-    });
-
-    mqttClient.on("reconnect", () => {
-        console.log("Reconnecting to MQTT broker...");
-        if (!isDisconnected) {
-            simulatePlatformSync();
-        }
-    });
-
-    mqttClient.on("message", (topic, message) => {
-        handleTestMessage(topic, message);
-    });
-
-    mqttClient.on("error", (error) => {
-        console.error("Test client MQTT error:", error);
-    });
+// Función para publicar el estado del dispositivo
+function publishDeviceState() {
+  const payload = JSON.stringify({
+    status: deviceState.status,
+    brightness: deviceState.brightness,
+    timestamp: Date.now(),
+  });
+  client.publish(topics.dataDevice, payload, { qos: 1 }, (err) => {
+    if (err) console.error('Error al publicar el estado:', err);
+    else console.log('Estado publicado:', payload);
+  });
 }
 
-function publishReconnectionStatus() {
-    const statusTopic = `users/${TEST_CLIENT_ID}/devices/${TEST_ENTITY_ID}/status`;
-    mqttClient.publish(statusTopic,JSON.stringify({ type: "status", message: "reconnected" }), { retain: true }, (err) => {
-        if (err) {
-            console.error(`Error publishing reconnection status to ${statusTopic}:`, err);
-        } else {
-            console.log(`Published reconnection status to ${statusTopic}: reconnected`);
-        }
-    });
-}
+// Al conectar al broker
+client.on('connect', () => {
+  console.log('Conectado al broker MQTT');
 
-function subscribeToTestTopics() {
-    const topics = [
-        `users/${TEST_CLIENT_ID}/devices/${TEST_ENTITY_ID}/heartbeat`,
-        TEST_SYNC_TOPIC,
-        TEST_REQUEST_TOPIC
-    ];
+  // Suscribirse a los tópicos relevantes
+  client.subscribe([topics.requestsPlatform, topics.dataPlatform], (err) => {
+    if (err) console.error('Error al suscribirse a los tópicos:', err);
+    else console.log('Suscrito a los tópicos:', [topics.requestsPlatform, topics.dataPlatform]);
+  });
 
-    topics.forEach((topic) => {
-        mqttClient.subscribe(topic, (err) => {
-            if (err) {
-                console.error(`Error subscribing to topic ${topic}:`, err);
-            } else {
-                console.log(`Subscribed to topic: ${topic}`);
-            }
-        });
-    });
-}
+  //--- SOT : Disp ---
+  //publishDeviceState()
+  //--- SOT : Platform ---
+  requestSyncFromPlatform();
+});
 
-function handleTestMessage(topic, message) {
-    if (topic === TEST_SYNC_TOPIC) {
-        console.log("Received sync request. State:", message.toString());
-    } else if (topic === TEST_REQUEST_TOPIC) {
-        console.log("Received state request from platform.");
-        simulateDeviceStatePublish();
+client.on('reconnect', () => {
+  console.log('Reconectado al broker MQTT');
+
+  // Suscribirse a los tópicos relevantes
+  client.subscribe([topics.requestsPlatform, topics.dataPlatform], (err) => {
+    if (err) console.error('Error al suscribirse a los tópicos:', err);
+    else console.log('Suscrito a los tópicos:', [topics.requestsPlatform, topics.dataPlatform]);
+  });
+
+  //--- SOT : Disp ---
+  //publishDeviceState()
+  //--- SOT : Platform ---
+  requestSyncFromPlatform();
+})
+
+// Al recibir mensajes de la plataforma
+client.on('message', (topic, message) => {
+  const payload = JSON.parse(message.toString());
+  console.log(`Mensaje recibido en ${topic}:`, payload);
+
+      // Verificar si el payload tiene un campo `data`
+      const data = payload.data;
+
+      if (data) {
+        console.log('Datos extraídos del payload:', data);
+      } else {
+        console.warn('El mensaje no contiene datos.');
+      }
+  if (topic === topics.requestsPlatform) {
+    if (payload.action === 'requestSync') {
+      console.log('Solicitud de sincronización recibida. Publicando estado...');
+      publishDeviceState();
+    } else if (payload.type === 'command') {
+      console.log('Comando recibido:', payload.command);
+      // Procesar el comando (por ejemplo, encender o apagar el dispositivo)
+      if (payload.command === 'turn_on') deviceState.status = 'on';
+      else if (payload.command === 'turn_off') deviceState.status = 'off';
+      else if (payload.command === 'set_brightness') deviceState.brightness = payload.value;
+
+      console.log('Nuevo estado del dispositivo:', deviceState);
     }
-}
+  } else 
+  if (topic === topics.dataPlatform) 
+  {
+    console.log('Datos sincronizados desde la plataforma:', data);
 
-function startSendingHeartbeat() {
-    const heartbeatTopic = `users/${TEST_CLIENT_ID}/devices/${TEST_ENTITY_ID}/heartbeat`;
+    if (typeof data.status === 'string') deviceState.status = data.status;
+    if (typeof data.brightness === 'number') deviceState.brightness = data.brightness;
 
-    setInterval(() => {
-        if (!isDisconnected) {
-            mqttClient.publish(heartbeatTopic, JSON.stringify({ type: "heartbeat", message: "ping" }), (err) => {
-                if (err) {
-                    console.error(`Error sending heartbeat to ${heartbeatTopic}:`, err);
-                } else {
-                    console.log(`Sent heartbeat to ${heartbeatTopic}`);
-                }
-            });
-        }
-    }, 60 * 1000);
-}
+    console.log('Estado actualizado desde la plataforma:', deviceState);
+  }
+});
 
-function simulateDeviceStatePublish() {
-    const publishTopic = `users/${TEST_CLIENT_ID}/devices/${TEST_ENTITY_ID}/message/${TEST_SUB_TOPIC}`;
-    mqttClient.publish(publishTopic, JSON.stringify(simulatedState), (err) => {
-        if (err) {
-            console.error(`Error publishing simulated state to ${publishTopic}:`, err);
-        } else {
-            console.log(`Published simulated state to ${publishTopic}:`, simulatedState);
-        }
-    });
-}
-
-function simulatePlatformSync() {
-    console.log("Simulating platform sync...");
-    mqttClient.publish(TEST_SYNC_TOPIC, JSON.stringify(simulatedState), { retain: true }, (err) => {
-        if (err) {
-            console.error(`Error publishing sync state to ${TEST_SYNC_TOPIC}:`, err);
-        } else {
-            console.log(`Published sync state to ${TEST_SYNC_TOPIC}:`, simulatedState);
-        }
-    });
-}
-
-function disconnectClient() {
-    console.log("Manually disconnecting MQTT client...");
-    isDisconnected = true;
-    simulatedState.temperature+=5;
-    mqttClient.end(() => {
-        console.log("MQTT client disconnected.");
-    });
-}
-
-function reconnectClient() {
-    console.log("Manually reconnecting MQTT client...");
-    isDisconnected = false;
-    initializeTestClient();
-}
-
-function runTestClient() {
-    initializeTestClient();
-    startMenu();
-}
-
-function startMenu() {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-    });
-
-    function showMenu() {
-        console.log("\nMenu:");
-        console.log("1. Disconnect client");
-        console.log("2. Reconnect client");
-        console.log("3. Exit");
-
-        rl.question("Choose an option: ", (answer) => {
-            switch (answer) {
-                case "1":
-                    disconnectClient();
-                    break;
-                case "2":
-                    reconnectClient();
-                    break;
-                case "3":
-                    rl.close();
-                    process.exit();
-                default:
-                    console.log("Invalid option, please try again.");
-            }
-            showMenu();
-        });
+// Publicar heartbeats periódicamente
+setInterval(() => {
+  client.publish(
+    topics.heartbeat,
+    JSON.stringify({ type: 'heartbeat', timestamp: Date.now() }),
+    { qos: 1 },
+    (err) => {
+      if (err) console.error('Error al publicar heartbeat:', err);
+      else console.log('Heartbeat enviado');
     }
+  );
+}, 4000); // Cada 5 segundos
 
-    showMenu();
+
+
+// Manejo de errores
+client.on('error', (err) => {
+  console.error('Error en el cliente MQTT:', err);
+});
+
+// Desconectar al cerrar el programa
+process.on('SIGINT', () => {
+  console.log('Desconectando del broker...');
+  client.end();
+  process.exit();
+});
+
+function requestSyncFromPlatform() {
+  console.log('Solicitando sincronización desde la plataforma...');
+  try {
+    const payload = JSON.stringify({ action: 'syncRequest' }); // Validar JSON
+    client.publish(topics.requestsDevice, payload, { qos: 1 }, (err) => {
+      if (err) console.error('Error al publicar solicitud de sincronización:', err);
+      else console.log('Solicitud de sincronización enviada:', payload);
+    });
+  } catch (error) {
+    console.error('Error al convertir el payload a JSON:', error);
+  }
 }
 
-runTestClient();
