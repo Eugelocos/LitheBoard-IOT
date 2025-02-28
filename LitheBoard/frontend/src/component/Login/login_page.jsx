@@ -6,7 +6,8 @@ import {
   TextField,
   Typography,
   Paper,
-  Avatar,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
 import { Link, Navigate } from "react-router-dom";
 import axios from "axios";
@@ -19,7 +20,6 @@ import {
   faChartLine,
 } from "@fortawesome/free-solid-svg-icons";
 import { MuiOtpInput } from "mui-one-time-password-input";
-import { IconButton, InputAdornment } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import config from "@config";
 import StatusBadge from "../status_badge";
@@ -30,44 +30,52 @@ function Login() {
   const [logged_in, setLoggedIn] = useState(false);
   const [error, setError] = useState("");
   const [user_data, setUserData] = useState(null);
-  const [otp, setOtp] = useState(""); // Estado para el OTP
+  const [otp, setOtp] = useState("");
   const [otp_requested, setOtpRequested] = useState(false);
   const [show_password, setShowPassword] = useState(false);
+  const [status, setStatus] = useState(0); // 0: inicial, 1: cargando, 2: éxito, 3: error
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [status, setStatus] = useState(0); // 0: initial, 1: loading, 2: success, 3: error
-
-  console.log(config);
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const togglePasswordVisibility = () => {
     setShowPassword(!show_password);
   };
 
-  const handleRequestOtp = async (e) => {
-    setStatus(1);
+  const handleLogin = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setStatus(1);
     try {
-      const response = await axios.post(`${base_url}/api/request-otp`, {
+      const response = await axios.post(`${base_url}/api/login`, form_data);
+      setUserData(response.data.user);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      // Solicitar OTP
+      await axios.post(`${base_url}/api/request-otp`, {
         email: form_data.email,
       });
-      setStatus(2);
-
-      console.log("OTP sended:", response.data);
+      console.log("OTP enviado");
       setOtpRequested(true);
+      // Reiniciamos el status para la pantalla OTP
       setStatus(0);
     } catch (error) {
-      console.error("Error requesting OTP:", error);
+      console.error("Error en login:", error);
       setStatus(3);
-      setError(error.response ? error.response.data.message : "Unknown error");
+      setError(
+        error.response ? error.response.data.message : "Error desconocido"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleVerifyOtp = async (e) => {
-    setStatus(1);
     e.preventDefault();
-    console.log(otp);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setStatus(1);
     try {
-      console.log(user_data.id, "user data #");
       const response = await axios.post(`${base_url}/api/verify-otp`, {
         client_id: user_data.id,
         otp: otp,
@@ -77,23 +85,11 @@ function Login() {
       localStorage.setItem("user", JSON.stringify(user_data));
     } catch (error) {
       setStatus(3);
-      setError(error.response ? error.response.data.message : "Unknown error");
-    }
-  };
-
-  const handleLogin = async (e) => {
-    // CHANGE TO PREVENT SECURITY GAP from /login to /dashboard
-    e.preventDefault();
-    try {
-      const response = await axios.post(`${base_url}/api/login`, form_data);
-
-      setUserData(response.data.user);
-
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      await handleRequestOtp(e);
-    } catch (error) {
-      console.error("Log in error:", error);
-      setError(error.response ? error.response.data.message : "Unknown error");
+      setError(
+        error.response ? error.response.data.message : "Error desconocido"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -129,6 +125,7 @@ function Login() {
         >
           {otp_requested ? (
             <>
+              {/* Formulario de verificación OTP */}
               <div className="w-[392px] max-h-[500px] h-full rounded-[10px] bg-[#232939] relative border border-[#232939e0] overflow-hidden">
                 <div className="flex flex-col gap-[0.375rem] p-6 text-center pt-4 pb-4 rounded-t-[1.5rem]">
                   <div className="m-auto inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 py-[0.125rem] text-sm font-semibold bg-[#bfdbfe] text-[#232939c7]">
@@ -157,12 +154,10 @@ function Login() {
                     onSubmit={handleVerifyOtp}
                     sx={{ mt: 3 }}
                   >
-                    <li style={{ display: "flex", alignItems: "center" }}>
-                      <p className="text-sm text-nowrap text-[#5c5b5b] m-auto my-[15px] ">
-                        A code was sent to your email. It will expire in 5
-                        minutes
-                      </p>
-                    </li>
+                    <p className="text-sm text-[#5c5b5b] m-auto my-[15px]">
+                    A code was sent to your email. It will expire in 5
+                    minutes
+                    </p>
                     <p className="text-[#6b7280] text-lg text-start mt-3 mb-2">
                       Email Code
                     </p>
@@ -176,23 +171,19 @@ function Login() {
                       />
                     </div>
 
-                    <div className="flex"></div>
-                    <div
-                      className={`flex justify-start items-center h-[140px] flex-wrap`}
-                    >
+                    <div className="flex justify-start items-center h-[140px] flex-wrap">
                       <button
                         type="submit"
-                        className={`w-[256px] rounded-full ${
-                          error ? "bg-[#df6d6c]" : "bg-blue-500"
-                        } font-semibold py-2 text-center m-auto my-2 self-start text-base`}
+                        disabled={isSubmitting}
+                        className={`w-[256px] rounded-full bg-blue-500
+                         font-semibold py-2 text-center m-auto my-2 self-start text-base`}
                       >
-                        Verify
+                        {isSubmitting ? "Verificando..." : "Verificar"}
                       </button>
                       <StatusBadge status={status} />
-
                       <div className="inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 py-[0.125rem] font-semibold bg-[#ede9fe] text-[#888] self-end bottom-0 mx-auto">
                         <Typography variant="body2" align="center">
-                          ¿No tienes una cuenta?{" "}
+                          ¿Do not have an account?{" "}
                           <Link
                             to="/register"
                             style={{
@@ -202,7 +193,7 @@ function Login() {
                               letterSpacing: "1px",
                             }}
                           >
-                            Regístrate
+                            Sign up
                           </Link>
                         </Typography>
                       </div>
@@ -213,10 +204,11 @@ function Login() {
             </>
           ) : (
             <>
+              {/* Formulario de Login */}
               <div className="w-[392px] max-h-[500px] h-full rounded-[10px] bg-[#232939] relative border border-[#232939e0] overflow-hidden">
                 <div className="flex flex-col gap-[0.375rem] p-6 text-center pt-4 pb-4 rounded-t-[1.5rem]">
                   <div className="m-auto inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 py-[0.125rem] text-sm font-semibold bg-[#bfdbfe] text-[#232939c7]">
-                    Welcome Back
+                  Welcome Back
                   </div>
                   <Typography
                     sx={{
@@ -237,10 +229,10 @@ function Login() {
                   style={{ borderRadius: "90% / 7% 7% 0 0" }}
                 >
                   <Box
-                    sx={{ textAlign: "left", marginTop: 2 }}
                     className="w-full mt-4"
                     component="form"
                     onSubmit={handleLogin}
+                    sx={{ textAlign: "left", marginTop: 2 }}
                   >
                     <p className="text-[#6b7280] text-base">Email</p>
                     <TextField
@@ -268,7 +260,7 @@ function Login() {
                       fullWidth
                       name="password"
                       label="Contraseña"
-                      type={show_password ? "text" : "password"} // Cambia entre "text" y "password"
+                      type={show_password ? "text" : "password"}
                       id="password"
                       autoComplete="current-password"
                       value={form_data.password}
@@ -300,22 +292,25 @@ function Login() {
                       sx={{ backgroundColor: "#ede9fe", borderRadius: 1 }}
                     />
 
-                    <div className="flex"></div>
-                    <div
-                      className={`flex justify-start items-center h-[111px] flex-wrap`}
-                    >
-                      <Button
-                        type="submit"
-                        className={`w-[256px] rounded-full "bg-blue-500"
-                         font-semibold py-2 text-center m-auto my-2 self-start text-base`}
-                      >
-                        Login
-                      </Button>
+                    <div className="flex justify-start items-center h-[111px] flex-col gap-[18px]">
+                      <div className="inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 font-semibold self-start bottom-0 mx-auto">
+                        <button
+                          type="submit"
+                          variant="contained"
+                          disabled={isSubmitting}
+                          className={`w-[256px] rounded-full bg-blue-500
+                           font-semibold py-2 text-center m-auto mt-2 self-start text-base`}
+                        >
+                          {isSubmitting ? "Loading..." : "Login"}
+                        </button>
+                      </div>
 
-                      
-                      <div className="inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 py-[0.125rem] font-semibold bg-[#ede9fe] text-[#888] self-end bottom-0 mx-auto">
+                      <div className="inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 font-semibold self-center bottom-0 mx-auto">
+                        <StatusBadge status={status} />
+                      </div>
+                      <div className="inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 font-semibold bg-[#ede9fe] text-[#888] self-end bottom-0 mx-auto">
                         <Typography variant="body2" align="center">
-                          ¿No tienes una cuenta?{" "}
+                          ¿Do not have an account?{" "}
                           <Link
                             to="/register"
                             style={{
@@ -325,7 +320,7 @@ function Login() {
                               letterSpacing: "1px",
                             }}
                           >
-                            Regístrate
+                            Sign up
                           </Link>
                         </Typography>
                       </div>
@@ -617,4 +612,5 @@ function Login() {
     </>
   );
 }
+
 export default Login;

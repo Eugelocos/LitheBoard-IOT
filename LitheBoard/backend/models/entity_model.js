@@ -83,9 +83,42 @@ async function getDatasourceType(client_id, entity_id) {
   }
 }
 
+async function updateEntityStatus(client_id, entity_id, status) {
+  try {
+    const [result] = await db.promise().query(
+      `UPDATE entities 
+       SET datasource_config = JSON_SET(
+         datasource_config, 
+         '$.status', 
+         ?
+       ) 
+       WHERE client_id = ? AND entity_id = ?`,
+      [status, client_id, entity_id]
+    );
+
+    // Verificar si se actualizó algún registro
+    if (result.affectedRows === 0) {
+      throw new Error('No se encontró el registro para actualizar');
+    }
+
+    // Opcional: Devolver el nuevo valor actualizado
+    const [updated] = await db.promise().query(
+      'SELECT datasource_config FROM entities WHERE client_id = ? AND entity_id = ?',
+      [client_id, entity_id]
+    );
+    
+    return updated[0]?.datasource_config || null;
+
+  } catch (error) {
+    console.error("Error al actualizar el estado:", error);
+    throw error;
+  }
+}
+
 module.exports = {
   getEntities,
   getToken,
   getDatasourceType,
+  updateEntityStatus
 };
 

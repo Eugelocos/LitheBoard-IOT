@@ -74,7 +74,7 @@ function LateralMenu({ handleSwitchSection, dashboards, user}) {
         </ListItemIcon>
         <ListItemText primary={<Typography variant="body1" style={{ color: '#FFFFFF' }}>Alarms</Typography>}/>
       </ListItemButton>
-      {user.access_level_id==1 ? (
+      {user?.access_level_id==1 ? (
         <>
       <Divider sx={{ borderColor: "rgb(248 248 248 / 5%)" }} />
       <ListItemButton onClick={() => handleSwitchSection("clients-settings")}>

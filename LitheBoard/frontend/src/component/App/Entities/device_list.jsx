@@ -23,6 +23,7 @@ function DeviceList(props) {
   const [editedName, setEditedName] = useState("");
   const [editedConfig, setEditedConfig] = useState({});
   const [token, setToken] = useState("");
+  
   const { entities, handleAddDevice, setEntities, user } = props;
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 

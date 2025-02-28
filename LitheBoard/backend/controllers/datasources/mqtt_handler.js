@@ -1,6 +1,7 @@
 const mqtt = require("mqtt");
 require("dotenv").config();
 const { getLastHistoricByEntityId } = require("../../models/historial_model")
+const {updateEntityStatus}=require("../../models/entity_model")
 
 let mqttClient = null;
 const entityMap = new Map();
@@ -17,12 +18,14 @@ function initialize(entity, eventEmitter) {
             console.log("Connected to MQTT broker.");
             subscribeToTopics(entity);
             handleReconnection(entity);
+            startHeartbeatTimer(entity)
         });
 
         mqttClient.on("reconnect", () => {
             console.log("Reconnecting to MQTT broker...");
             subscribeToTopics(entity);
             handleReconnection(entity);
+            startHeartbeatTimer(entity)
         });
 
         mqttClient.on("error", (error) => {
@@ -165,6 +168,30 @@ function handleDeviceStateRequest(data, entity) {
     sendPlatformStateToDevice(entity);
 }
 
+
+function startHeartbeatTimer(entity) {
+    const entityKey = `${entity.client_id}:${entity.entity_id}`;
+    const timeoutDuration = entity.datasource_config.heartbeat_timeout || 60000; // 1 minuto por defecto
+
+
+    if (heartbeatTimers.has(entityKey)) {
+        clearTimeout(heartbeatTimers.get(entityKey));
+    }
+
+    const timeout = setTimeout(async () => {
+        entity.datasource_config.status = "inactive";
+        console.log(`Entity ${entityKey} marcada como inactiva por falta de heartbeat`);
+        
+        try {
+            await updateEntityStatus(entity.client_id, entity.entity_id, "inactive");
+        } catch (error) {
+            console.error("Error actualizando estado:", error);
+        }
+    }, timeoutDuration);
+
+    heartbeatTimers.set(entityKey, timeout);
+}
+
 function handleDeviceHeartbeat(data, topic) {
     console.log("Handling device heartbeat", data);
     const parts = topic.split("/");
@@ -177,18 +204,11 @@ function handleDeviceHeartbeat(data, topic) {
         if (entity.datasource_config.status === "inactive") {
             entity.datasource_config.status = "active";
             console.log(`Entity ${entityKey} is now active.`);
+            updateEntityStatus(client_id, device_id, "active")
+                .catch(error => console.error("Error updating status:", error));
         }
 
-        if (heartbeatTimers.has(entityKey)) {
-            clearTimeout(heartbeatTimers.get(entityKey));
-        }
-
-        const timeout = setTimeout(() => {
-            entity.datasource_config.status = "inactive";
-            console.log(`Entity ${entityKey} is now inactive due to heartbeat timeout.`);
-        }, entity.datasource_config.heartbeat_timeout);
-
-        heartbeatTimers.set(entityKey, timeout);
+        startHeartbeatTimer(entity)
     } else {
         console.warn(`No entity found for heartbeat: ${client_id}:${device_id}`);
     }

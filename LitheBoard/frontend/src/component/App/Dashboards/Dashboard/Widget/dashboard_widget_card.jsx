@@ -12,6 +12,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import EditIcon from "@mui/icons-material/Edit";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import SignalWifiOffRoundedIcon from "@mui/icons-material/SignalWifiOffRounded";
 import { styled } from "@mui/material";
 import {
   LineChart,
@@ -191,7 +192,7 @@ function DeviceCard({
         height: "fit-content",
         maxWidth: "100%",
         margin: "0px",
-        padding: device.widget_type === "switch" ? "10px" : "0px",
+        padding: "0px",
       }}
     >
       <CardContent
@@ -211,10 +212,10 @@ function DeviceCard({
               device.config?.datasource_type === "MQTT" ? (
                 <div>
                   <Typography variant="body2">
-                    Subscribed Topic: {device.config?.sub_topic || "N/A"}
+                    Subscribed Topic: {device.config?.datasource_config?.sub_topic || "N/A"}
                   </Typography>
                   <Typography variant="body2">
-                    Publish Topic: {device.config?.pub_topic || "N/A"}
+                    Publish Topic: {device.config?.datasource_config?.pub_topic || "N/A"}
                   </Typography>
                   <Typography variant="body2">
                     Associated Entity Name:{" "}
@@ -246,21 +247,25 @@ function DeviceCard({
                 </Typography>
               )
             }
+            style={{zIndex:15}}
           >
-            <IconButton>
+            <IconButton             style={{zIndex:15}}>
               <InfoIcon style={{ color: "#232939" }} />
             </IconButton>
           </Tooltip>
         </div>
+
         {device.entity_id ? (
-          <>
+          <div className="relative h-full">
             {device.widget_type === "switch" && (
               <div
                 style={{
+                  flex: "1 1 auto",
                   display: "flex",
-                  alignItems: "center",
-                  marginTop: "16px",
+                  flexDirection: "column",
+                  justifyContent: "center",
                 }}
+                className="m-2"
               >
                 <IOSSwitch
                   checked={device.estadoActual}
@@ -499,7 +504,53 @@ function DeviceCard({
                 ></WidgetCustomValueCard>
               </div>
             )}
-          </>
+
+            {/* inactive state overlay*/}
+            {device.config.datasource_config?.status === "inactive" && (
+              <div
+                className={`absolute inset-0 flex items-center justify-center p-4 
+                ${
+                  device.widget_type === "switch"
+                    ? "bg-white/70"
+                    : "bg-white/70"
+                } 
+                backdrop-blur-sm rounded-lg z-10`}
+              >
+                <div
+                  className={`flex flex-col items-center text-center space-y-2 p-6 rounded-lg
+                  ${
+                    device.widget_type === "switch"
+                      ? "bg-white/90"
+                      : "bg-white/90 shadow-lg border border-gray-200"
+                  }`}
+                >
+                  <SignalWifiOffRoundedIcon
+                    className={`w-12 h-12 text-yellow-600`}
+                  />
+
+                  <h3
+                    className={`text-lg font-semibold${
+                      device.widget_type === "switch"
+                        ? "text-gray-700"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    Dispositivo desconectado
+                  </h3>
+
+                  <p
+                    className={`text-sm ${
+                      device.widget_type === "switch"
+                        ? "text-gray-600"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    Última conexión: {device.last_connection || "N/A"}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center bg-gray-100 border border-gray-300 rounded-lg p-6 text-gray-600 shadow-md">
             <InfoOutlinedIcon className="text-gray-500 text-4xl mb-2" />
@@ -509,6 +560,7 @@ function DeviceCard({
             </p>
           </div>
         )}
+
         <div className="inline-block mt-4">
           <IconButton
             className="text-my-blue hover:text-red-900 "

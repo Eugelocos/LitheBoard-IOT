@@ -173,7 +173,7 @@ function DashboardPanel() {
 
   };
 
-  if (loading) {
+  /*if (loading) {
     return (
       <div className="h-[100vh] w-full flex flex-wrap justify-center items-center">
         <div id="wifi-loader">
@@ -194,7 +194,7 @@ function DashboardPanel() {
         </div>
       </div>
     );
-  }
+  }*/
 
   return (
     <div className="container flex flex-wrap justify-center w-full min-w-full ">
@@ -334,15 +334,13 @@ function DashboardPanel() {
             ></AlarmList>
           </div>
 
-          {user?.access_level_id === 1 ? (
+          {user?.access_level_id === 1 && (
             <div
               className="clients-settings min-[500px]:p-10 px-30 h-full"
               style={{ display: "none" }}
             >
               <ClientList client_id={user?.id} dashboards={dashboards} clients_asociated={clients_asociated} setClientsAsociated={setClientsAsociated} setDashboards={setDashboards}></ClientList>
             </div>
-          ) : (
-            <></>
           )}
 
           <div
