@@ -18,6 +18,9 @@ const client_routes = require('./routes/client_routes');
 const dashboard_routes = require('./routes/dashboard_routes');
 const alarm_routes = require('./routes/alarm_routes');
 const notification_routes = require('./routes/notification_routes');
+
+const DatasourceController = require('./controllers/datasource_controller');
+const entityModel = require('./models/entity_model');
 /* The above code snippet is written in JavaScript and it is setting up a server using the
 Express framework. */
 
@@ -25,7 +28,7 @@ const app = express();
 const port = process.env.BACKEND_PORT || 3001;
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://backend:3000'], // Permitir orígenes específicos
+  origin: ['http://localhost:3000', 'http://backend:3000', 'http://tongavla.mooo.com:3000'], // Permitir orígenes específicos
   //allowedHeaders: ['Content-Type', 'Authorization'], // Encabezados permitidos
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
   credentials: true // Permite el envío de cookies, que puede ser útil para CORS
@@ -64,6 +67,13 @@ app.use("/api", client_routes);
 app.use("/api", dashboard_routes);
 app.use("/api", alarm_routes);
 //#endregion
+
+
+
+
+
+
+
 
 
 

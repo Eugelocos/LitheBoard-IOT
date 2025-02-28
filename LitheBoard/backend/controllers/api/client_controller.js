@@ -111,6 +111,21 @@ const logout = (req, res) => {
   });
 };
 
+/**
+ * The function `register` is an asynchronous function that handles user registration, including
+ * validation, checking for admin privileges, and inserting the user into the database.
+ * @param req - The `req` parameter in the `register` function is an object that represents the HTTP
+ * request. It contains information about the request made to the server, such as the request body
+ * (`req.body`) which typically includes data sent by the client in the request payload. In this case,
+ * the `req
+ * @param res - The `res` parameter in the `register` function is the response object that will be sent
+ * back to the client making the request. It is used to send the HTTP response with the appropriate
+ * status code and data back to the client.
+ * @returns If the `name`, `email`, or `password` fields are missing in the request body, a 400 status
+ * with a message "Please, fill all the fields" will be returned. If there is an error during the
+ * registration process, a 500 status with a message "Server error" and the error message will be
+ * returned. If the registration is successful, a 201 status with a
+ */
 const register = async (req, res) => {
   const { name, email, password, adminEmail, access_level } = req.body;
 
@@ -264,6 +279,62 @@ const getClientsByIds = async (req, res) => {
   }
 };
 
+
+/**
+ * The function `deleteClient` is an asynchronous function in JavaScript that deletes a client from a
+ * database after checking for dependencies and handling errors.
+ * @param req - The `req` parameter in the `deleteClient` function stands for the request object. It
+ * contains information about the HTTP request that triggered the function, such as request headers,
+ * parameters, body, and other details. In this case, `req.params` is used to access parameters passed
+ * in the URL
+ * @param res - The `res` parameter in the `deleteClient` function is the response object that will be
+ * used to send a response back to the client making the request. It is typically used to set the
+ * status code of the response (e.g., 200 for success, 404 for not found,
+ * @returns The `deleteClient` function is checking if a client exists in the database based on the
+ * `client_id` provided in the request parameters. If the client is not found, it returns a 404 status
+ * with a message "Client not found".
+ */
+const deleteClient = async (req, res) => {
+  const { client_id } = req.params;
+
+  try {
+    // Check if client exists
+    const [clientCheck] = await db.promise().query(
+      'SELECT * FROM clients WHERE client_id = ?',
+      [client_id]
+    );
+
+    if (clientCheck.length === 0) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    // Check for dependencies (adjust according to your relations)
+    const [dependencies] = await db.promise().query(
+      'SELECT * FROM dashboards WHERE additional_client_ids LIKE ?',
+      [`%${client_id}%`]
+    );
+
+    if (dependencies.length > 0) {
+      return res.status(400).json({ 
+        message: "Cannot delete client with associated dashboards",
+        dashboards: dependencies.map(d => d.dashboard_id)
+      });
+    }
+
+    // Proceed with deletion
+    await db.promise().query(
+      'DELETE FROM clients WHERE client_id = ?',
+      [client_id]
+    );
+
+    res.status(200).json({ message: "Client deleted successfully" });
+
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
 module.exports = {
   login,
   getClientsByIds,
@@ -272,4 +343,5 @@ module.exports = {
   register,
   updateClient,
   getAsociatedClientsAdminsByAdminId,
+  deleteClient
 };

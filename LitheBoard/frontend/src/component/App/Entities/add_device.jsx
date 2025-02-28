@@ -1,58 +1,89 @@
-import React, { useRef } from "react";
-import TextField from "@mui/material/TextField";
-import { styled } from "@mui/material/styles";
-import Button from "@mui/material/Button";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import React, { useRef, useState } from "react";
+import {
+  TextField,
+  Button,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  Typography,
+} from "@mui/material";
+import { IconButton } from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { setDevice } from "../../database_data_functions";
+import StatusBadge from "../../status_badge";
 
-const MyTextField = styled(TextField)({
-  "& .MuiFilledInput-underline:after": {
-    borderBottomColor: "#232939",
-  },
-  "& .MuiFilledInput-label:after": {
-    borderBottomColor: "#232939",
-  },
-});
-
-const MyButton = styled(Button)(({ theme }) => ({
-  backgroundColor: "#232939",
-  color: "#fff",
-  "&:hover": {
-    backgroundColor: "#333c54",
-  },
-}));
-
-function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user}) {
+function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user }) {
   const disp_name_ref = useRef();
   const sub_topic_ref = useRef();
   const pub_topic_ref = useRef();
+  const api_url_ref = useRef();
+  const api_method_ref = useRef();
+  const api_polling_interval_ref = useRef();
+  const api_query_params_ref = useRef();
+  const api_headers_ref = useRef();
+  const api_request_body_ref = useRef();
+  const api_data_key_ref = useRef();
+
+  const [datasourceType, setDatasourceType] = useState("MQTT");
+  const [status, setStatus] = useState(0); // 0: initial, 1: loading, 2: success, 3: error
 
   const handleAddDevice = () => {
+    setStatus(1);
     const dispName = disp_name_ref.current.value;
-    const subTopic = sub_topic_ref.current.value;
-    const pubTopic = pub_topic_ref.current.value;
+    console.log("datasource_type_ref.current", datasourceType);
 
-    if (dispName && subTopic && pubTopic) {
-      const device = {
+    let datasourceConfig = {};
+
+    if (datasourceType === "MQTT") {
+      datasourceConfig = {
+        sub_topic: sub_topic_ref.current.value,
+        pub_topic: pub_topic_ref.current.value,
+      };
+    } else if (datasourceType === "API") {
+      datasourceConfig = {
+        base_url: api_url_ref.current.value,
+        method: api_method_ref.current.value,
+        polling_interval: api_polling_interval_ref.current.value,
+        query_params: api_query_params_ref.current.value,
+        headers: api_headers_ref.current.value,
+        request_body: api_request_body_ref.current.value,
+      };
+    }
+    console.log("datasourceConfig:", datasourceConfig);
+    if (dispName && datasourceConfig) {
+      const entity = {
         client_id: user.id,
         disp_name: dispName,
-        sub_topic: subTopic,
-        pub_topic: pubTopic,
+        datasource_type: datasourceType,
+        datasource_config: datasourceConfig,
       };
-      setDevice(device)
+
+      setDevice(entity)
         .then((response) => {
-          console.log("Device added successfully:", response.data);
-          const new_device = { ...device, entity_id: response.data.entity_id };
-          onAddDevice(new_device); // Llamar a la función de callback si es necesario
-          // Limpiar campos del formulario
+          setStatus(2);
+          console.log("Entity added successfully:", response.data);
+
+          const new_entity = { ...entity, entity_id: response.data.entity_id };
+          onAddDevice(new_entity);
           disp_name_ref.current.value = "";
-          sub_topic_ref.current.value = "";
-          pub_topic_ref.current.value = "";
-          showDeviceList(true); // Mostrar panel principal
+          if (datasourceType === "MQTT") {
+            sub_topic_ref.current.value = "";
+            pub_topic_ref.current.value = "";
+          } else if (datasourceType === "API") {
+            api_url_ref.current.value = "";
+            api_method_ref.current.value = "";
+            api_polling_interval_ref.current.value = "";
+            api_query_params_ref.current.value = "";
+            api_headers_ref.current.value = "";
+            api_request_body_ref.current.value = "";
+          }
+
+          showDeviceList(true);
         })
         .catch((error) => {
-          console.error("Error adding device:", error);
+          setStatus(3);
+          console.error("Error adding entity:", error);
         });
     }
   };
@@ -62,72 +93,136 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user}) {
   };
 
   return (
-    <div className=" max-h-fit bg-white border border-gray-300 rounded p-4 shadow-[0px_0px_10px_rgba(0,0,0,0.1)] py-10 w-full max-w-full lg:max-w-[500px] lg:w-4/6">
+    <div className="max-h-fit bg-white border border-gray-300 rounded p-4 shadow-[0px_0px_10px_rgba(0,0,0,0.1)] py-10 w-full max-w-full lg:max-w-[500px] lg:w-4/6">
       <div className="flex m-auto flex-wrap justify-center">
         <div className="flex justify-between items-center py-2 w-full">
-          <button
-            onClick={handleReturn}
-            id="show-add-device-panel"
-            className="left-0 w-12 h-10 ml-10 flex items-center justify-center rounded-full bg-white hover:bg-gray-200/75 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors duration-200"
+          <IconButton onClick={handleReturn} style={{ marginLeft: 10 }}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography
+            variant="h6"
+            component="div"
+            className="text-center"
+            style={{ flexGrow: 1 }}
           >
-            <FontAwesomeIcon icon={faArrowLeft} className="" />
-          </button>
-          <div className="flex justify-center items-center py-2 w-full">
-            <h2 className=" font-medium text-gray-900 text-xl pr-10">
-              Add entity
-            </h2>
-          </div>
+            Add Entity
+          </Typography>
         </div>
 
-        <div className="flex m-auto flex-wrap justify-center my-10">
-          <div className="mb-6 w-full mx-10">
-            <MyTextField
-              id="dispName filled-basic"
+        <div className="flex m-auto flex-wrap justify-center my-10 overflow-y-auto max-h-[400px]">
+          <FormControl fullWidth margin="normal">
+            <TextField
               label="Entity Name"
-              variant="filled"
+              variant="outlined"
               inputRef={disp_name_ref}
-              InputLabelProps={{ style: { color: "#232939" } }}
-              InputProps={{ style: { color: "#232939" } }}
-              autoComplete="off"
               fullWidth
             />
-          </div>
+          </FormControl>
 
-          <div className="w-full mb-6 mx-10">
-            <MyTextField
-              id="subTopic filled-basic"
-              label="Subscribe Topic"
-              variant="filled"
-              inputRef={sub_topic_ref}
-              InputLabelProps={{ style: { color: "#232939" } }}
-              InputProps={{ style: { color: "#232939" } }}
-              autoComplete="off"
-              fullWidth
-            />
-          </div>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="datasourceType-label">Datasource Type</InputLabel>
+            <Select
+              labelId="datasourceType-label"
+              id="datasourceType"
+              value={datasourceType}
+              onChange={(e) => setDatasourceType(e.target.value)}
+            >
+              <MenuItem value="MQTT">MQTT</MenuItem>
+              <MenuItem value="API">API</MenuItem>
+            </Select>
+          </FormControl>
 
-          <div className="w-full mb-6 mx-10">
-            <MyTextField
-              id="pubTopic filled-basic"
-              label="Publish Topic"
-              variant="filled"
-              inputRef={pub_topic_ref}
-              InputLabelProps={{ style: { color: "#232939" } }}
-              InputProps={{ style: { color: "#232939" } }}
-              autoComplete="off"
-              fullWidth
-            />
-          </div>
+          {datasourceType === "MQTT" && (
+            <>
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Subscribe Topic"
+                  variant="outlined"
+                  inputRef={sub_topic_ref}
+                  fullWidth
+                />
+              </FormControl>
+
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Publish Topic"
+                  variant="outlined"
+                  inputRef={pub_topic_ref}
+                  fullWidth
+                />
+              </FormControl>
+            </>
+          )}
+
+          {datasourceType === "API" && (
+            <>
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Base URL"
+                  variant="outlined"
+                  inputRef={api_url_ref}
+                  fullWidth
+                />
+              </FormControl>
+
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="HTTP Method"
+                  variant="outlined"
+                  inputRef={api_method_ref}
+                  fullWidth
+                />
+              </FormControl>
+
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Polling Interval"
+                  variant="outlined"
+                  inputRef={api_polling_interval_ref}
+                  fullWidth
+                />
+              </FormControl>
+
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Query Params"
+                  variant="outlined"
+                  inputRef={api_query_params_ref}
+                  fullWidth
+                />
+              </FormControl>
+
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Headers"
+                  variant="outlined"
+                  inputRef={api_headers_ref}
+                  fullWidth
+                />
+              </FormControl>
+
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Request Body"
+                  variant="outlined"
+                  inputRef={api_request_body_ref}
+                  fullWidth
+                />
+              </FormControl>
+            </>
+          )}
         </div>
 
         <div className="w-full flex justify-center flex-wrap">
-          <MyButton
+          <Button
             variant="contained"
             color="primary"
             onClick={handleAddDevice}
+            style={{ width: "80%", marginTop: 20 }}
           >
-            Add
-          </MyButton>
+            Add Device
+          </Button>
+          <StatusBadge status={status} />
         </div>
       </div>
     </div>

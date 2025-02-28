@@ -27,9 +27,8 @@ const getWidgetsWithEntities = async (req, res) => {
         e.entity_id, 
         e.client_id, 
         e.disp_name, 
-        e.sub_topic, 
-        e.pub_topic, 
-        e.token,
+        e.datasource_type,
+        e.datasource_config,
         w.widget_id,
         w.dashboard_id, 
         w.widget_type, 
@@ -50,19 +49,40 @@ const getWidgetsWithEntities = async (req, res) => {
       .query(query, [client_id, dashboard_id]);
 
     const enhancedResults = results.map((result) => {
-      let config = result.config_data;
+      let config = result.config_data || {};
 
-      
-      config = config || {};
-      config.sub_topic = result.sub_topic;
-      config.pub_topic = result.pub_topic;
-      config.token = result.token;
+      let datasource_config = {};
+
+      if (result.datasource_type === 'MQTT') {
+        datasource_config = {
+          ...result.datasource_config, 
+        };
+      } else if (result.datasource_type === 'API') {
+
+        const apiConfig = result.datasource_config || {};
+
+        datasource_config = {
+          base_url: apiConfig.base_url || '', 
+          endpoint: apiConfig.endpoint || '',
+          method: apiConfig.method || 'GET',
+          polling_interval: apiConfig.polling_interval || 0,
+          query_params: apiConfig.query_params || {},
+          headers: apiConfig.headers || {},
+          request_body: apiConfig.request_body || {},
+          data_key: apiConfig.data_key || '',
+        };
+      }
 
 
+      config = {
+        ...config,
+        datasource_type: result.datasource_type,
+        datasource_config,
+      };
 
       return {
         ...result,
-        config_data: JSON.stringify(config), 
+        config_data: JSON.stringify(config),
       };
     });
 
@@ -72,6 +92,7 @@ const getWidgetsWithEntities = async (req, res) => {
     res.status(500).json({ message: "Error in database query", error: err });
   }
 };
+
 
 /**
  * The function `getWidgetById` retrieves a widget from the database based on the provided widget_id
@@ -263,25 +284,25 @@ const updateWidget = async (req, res) => {
  * @memberof controllers.api.widget
  */
 const deleteWidget = async (req, res) => {
-    const { widget_id } = req.params;
-  
-    try {
-      const [result] = await db.promise().query(
-        "DELETE FROM widgets WHERE widget_id = ?",
-        [widget_id]
-      );
-  
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Widget not found" });
-      }
-  
-      res.status(200).json({ message: "Widget deleted successfully" });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Database error", error: err });
+  const { widget_id } = req.params;
+
+  try {
+    const [result] = await db.promise().query(
+      "DELETE FROM widgets WHERE widget_id = ?",
+      [widget_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Widget not found" });
     }
+
+    res.status(200).json({ message: "Widget deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Database error", error: err });
+  }
 };
-  
+
 
 module.exports = {
   getWidgetsWithEntities,

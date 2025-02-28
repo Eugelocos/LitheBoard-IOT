@@ -28,8 +28,8 @@ const getAlarmsByClientId = async (req, res) => {
         a.selected_key,
         a.alarm_condition,
         e.disp_name,
-        e.token,
-        e.sub_topic
+        e.datasource_type,
+        e.datasource_config
       FROM 
         alarms a
       JOIN 
@@ -45,6 +45,8 @@ const getAlarmsByClientId = async (req, res) => {
         .status(404)
         .json({ message: "No se encontraron alarmas para este cliente." });
     }
+
+    // Aquí podrías manejar la lógica basada en el tipo de datasource si necesitas hacer algo más específico
     res.status(200).json(results);
   } catch (err) {
     console.error("Error fetching alarms:", err);
@@ -53,6 +55,7 @@ const getAlarmsByClientId = async (req, res) => {
       .json({ message: "Error en el servidor", error: err.message });
   }
 };
+
 
 const insterAlarm = async (req, res) => {
   const { entity_id, valor, client_id, selected_key, alarm_condition } =

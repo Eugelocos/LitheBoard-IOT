@@ -18,10 +18,12 @@ SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION;
 SET NAMES utf8mb4;
 
 --
--- Base de datos: `bizoepeecwuj1ltr1bxy`
+-- Base de datos: `litheboard`
 --
 CREATE DATABASE IF NOT EXISTS `litheboard_db` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
 USE `litheboard_db`;
+
+
 
 -- --------------------------------------------------------
 
@@ -288,6 +290,29 @@ INSERT INTO `widgets` (`widget_id`, `entity_id`, `dashboard_id`, `widget_type`, 
 (168, 212, 8814, 'customValueCard', '{\"pub_topic\": \"habitacionPa/Comandos\", \"scriptCss\": \".\", \"sub_topic\": \"compuPc\", \"scriptHtml\": \"${value}\", \"entity_name\": \"WemosDS_18B20\", \"selected_key\": \"contactoSeco\"}', 4, 'dd'),
 (169, 212, 8814, 'customValueCard', '{\"pub_topic\": \"habitacionPa/Comandos\", \"sub_topic\": \"compuPc\", \"scriptHtml\": \"${value}\", \"entity_name\": \"WemosDS_18B20\", \"selected_key\": \"contactoSeco\"}', 4, 'eeee'),
 (170, 212, 8814, 'lineChart', '{\"lineColor\": \"#7ba3d7\", \"pub_topic\": \"habitacionPa/Comandos\", \"sub_topic\": \"compuPc\", \"entity_name\": \"WemosDS_18B20\", \"selected_key\": \"temp\"}', 4, 'tempe');
+
+
+
+
+
+CREATE TABLE `mqtt_user` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `username` varchar(100) DEFAULT NULL,
+  `password_hash` varchar(100) DEFAULT NULL,
+  `salt` varchar(35) DEFAULT NULL,
+  `is_superuser` tinyint(1) DEFAULT 0,
+  `created` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mqtt_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Agregar un usuario de prueba
+mysql> INSERT INTO mqtt_user(username, password_hash, salt, is_superuser) VALUES ('litheboard_admin', SHA2(concat('pepelithe', 'slat_foo123'), 256), 'slat_foo123', 1);
+
+
+
+
+
 
 --
 -- Índices para tablas volcadas

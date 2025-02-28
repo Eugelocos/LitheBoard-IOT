@@ -1,6 +1,6 @@
 const db = require("../../config/db");
 const {generateToken} = require('../../services/otp_service')
-
+const { getDatasourceController } = require('../datasource_initializer');
 
 /**
  * Namespace to separate APIs controllers
@@ -47,43 +47,94 @@ const getEntities = async (req, res) => {
 };
 
 /**
+ * Inserts entity data into the database and returns the inserted entity's details.
  * 
- * The function `insertEntities` inserts entity data into a database table and returns the inserted
- * entity's details along with a generated token.
- * @param {object} req - The `req` parameter in the `insertEntities` function is an object that represents the
- * HTTP request. It typically contains information such as request headers, parameters, body, and other
- * details related to the client's request to the server. In this specific function, `req.body` is
- * being used to
- * @param {object} res - The `res` parameter in the `insertEntities` function is the response object that will
- * be sent back to the client after the entity data is inserted into the database. It is used to send a
- * JSON response with the inserted entity data or an error message in case of any issues during the
- * insertion process
+ * @param {object} req - HTTP request object containing `client_id`, `disp_name`, 
+ * `datasource_type`, and `datasource_config` in `req.body`.
+ * @param {object} res - HTTP response object to send the result back to the client.
+ * 
  * @function
  * @memberof controllers.api.entity
  */
 const insertEntities = async (req, res) => {
-  const { client_id, disp_name, sub_topic, pub_topic } = req.body;
+  const { client_id, disp_name, datasource_type, datasource_config } = req.body;
 
   try {
-    const token = await generateToken();
-    const query =
-      "INSERT INTO entities (client_id, disp_name, sub_topic, pub_topic, token) VALUES (?, ?, ?, ?, ?)";
-    const values = [client_id, disp_name, sub_topic, pub_topic, token];
-    const [result] = await db.promise().query(query, values);
+      const token = await generateToken();
 
-    res.json({
-      entity_id: result.insertId,
-      client_id,
-      disp_name,
-      sub_topic,
-      pub_topic,
-      token,
-    });
-  } catch (err) {
-    console.error("Error inserting entity data:", err);
-    res.status(500).send({ message: "Error inserting data", error: err });
+      let query, values;
+
+      if (datasource_type === 'MQTT') {
+          const { sub_topic, pub_topic } = datasource_config;
+          query = `
+              INSERT INTO entities 
+              (client_id, disp_name, datasource_type, datasource_config) 
+              VALUES (?, ?, ?, ?)
+          `;
+          values = [
+              client_id,
+              disp_name,
+              datasource_type,
+              JSON.stringify({ sub_topic, pub_topic, token }),
+          ];
+      } else if (datasource_type === 'API') {
+          const {
+              base_url,
+              endpoint,
+              method,
+              polling_interval,
+              query_params,
+              headers,
+              request_body,
+              data_key,
+          } = datasource_config;
+
+          query = `
+              INSERT INTO entities 
+              (client_id, disp_name, datasource_type, datasource_config) 
+              VALUES (?, ?, ?, ?)
+          `;
+          values = [
+              client_id,
+              disp_name,
+              datasource_type,
+              JSON.stringify({
+                  base_url,
+                  endpoint,
+                  method,
+                  polling_interval,
+                  query_params,
+                  headers,
+                  request_body,
+                  data_key,
+              }),
+          ];
+      } else {
+          throw new Error('Unsupported datasource type');
+      }
+
+      const [result] = await db.promise().query(query, values);
+
+
+      const newEntity = {
+          entity_id: result.insertId,
+          client_id,
+          disp_name,
+          datasource_type,
+          datasource_config: { ...datasource_config, token },
+      };
+
+      const datasourceController = await getDatasourceController();
+      datasourceController.addOrUpdateEntity(newEntity);
+
+      res.status(201).json(newEntity);
+  } catch (error) {
+      console.error('Error inserting entity:', error);
+      res.status(500).send({ message: 'Failed to insert entity', error: error.message });
   }
 };
+
+
 
 /**
  * 
@@ -142,17 +193,17 @@ const getEntityById = async (req, res) => {
  * @memberof controllers.api.entity
  */
 const updateEntity = async (req, res) => {
-  const { entity_id, disp_name, sub_topic, pub_topic } = req.body;
-  if (!entity_id || !disp_name || !sub_topic || !pub_topic) {
+  const { entity_id, disp_name, datasource_config} = req.body;
+  if (!entity_id || !disp_name || !datasource_config) {
     return res.status(400).json({ message: "Missing required data" });
   }
 
   const query = `
       UPDATE entities
-      SET disp_name = ?, sub_topic = ?, pub_topic = ?
+      SET disp_name = ?, datasource_config = ?
       WHERE entity_id = ?
     `;
-  const values = [disp_name, sub_topic, pub_topic, entity_id];
+  const values = [disp_name, datasource_config, entity_id];
 
   try {
     const [result] = await db.promise().query(query, values);
@@ -160,6 +211,26 @@ const updateEntity = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Entity not found" });
     }
+
+    const datasourceController = await getDatasourceController();
+
+    // Actualizar la entidad en el DatasourceController
+    const updatedEntity = {
+      entity_id,
+      disp_name,
+      datasource_config: JSON.parse(datasource_config), // Asegúrate de convertirlo de nuevo a objeto si es necesario
+    };
+
+    // Obtén el tipo de datasource desde la entidad existente en el DatasourceController
+    const existingEntity = datasourceController.entityMap.get(entity_id);
+    if (!existingEntity) {
+      return res.status(404).json({ message: "Entity not found in controller" });
+    }
+
+    updatedEntity.datasource_type = existingEntity.datasource_type;
+
+    datasourceController.addOrUpdateEntity(updatedEntity);
+
 
     res.json({ message: "Entity successfully upated" });
   } catch (err) {

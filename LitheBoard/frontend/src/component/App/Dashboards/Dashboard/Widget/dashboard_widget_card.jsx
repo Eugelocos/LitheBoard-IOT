@@ -12,6 +12,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import InfoIcon from "@mui/icons-material/Info";
 import EditIcon from "@mui/icons-material/Edit";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import SignalWifiOffRoundedIcon from "@mui/icons-material/SignalWifiOffRounded";
 import { styled } from "@mui/material";
 import {
   LineChart,
@@ -89,7 +90,6 @@ const IOSSwitch = styled((props) => (
   },
 }));
 
-
 function DeviceCard({
   device,
   index,
@@ -109,34 +109,30 @@ function DeviceCard({
   const [historial, setHistorial] = useState({});
 
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
- 
 
   useEffect(() => {
     setConfig(device.config);
-  }, [device.entity_id]);
-
-
+  }, [device.config, device.entity_id]);
 
   useEffect(() => {
     if (device.historial && device.config?.selected_key) {
       setHistorial(() => {
         const filteredHistorial = device.historial.filter((entry) => {
           const data = entry.data || {};
-          const hasKey = Object.prototype.hasOwnProperty.call(data, device.config.selected_key);
-          return hasKey; 
+          const hasKey = Object.prototype.hasOwnProperty.call(
+            data,
+            device.config.selected_key
+          );
+          return hasKey;
         });
 
-
-        return filteredHistorial.slice(-20); 
+        return filteredHistorial.slice(-20);
       });
     } else {
       setHistorial([]);
     }
     setis_loading(false);
   }, [device.widget_type, device.historial, device.config?.selected_key]);
-  
-  
-  
 
   useEffect(() => {
     const updateSize = () => {
@@ -154,17 +150,11 @@ function DeviceCard({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-
-
-
   const eliminarWidget = () => {
     try {
-      fetch(
-        `${base_url}/api/data/widgets/delete/${device.widget_id}`,
-        {
-          method: "DELETE",
-        }
-      )
+      fetch(`${base_url}/api/data/widgets/delete/${device.widget_id}`, {
+        method: "DELETE",
+      })
         .then((response) => response.json())
         .then((data) => {
           if (data.message === "Widget deleted successfully") {
@@ -181,7 +171,7 @@ function DeviceCard({
   };
 
   function editWidget() {
-    console.log("device.widget_id : ", device.widget_id)
+    console.log("device.widget_id : ", device.widget_id);
     setEditedWidgetId(device.widget_id);
     setEditedWidgetType(device.widget_type);
     openWidgetEditor(true);
@@ -190,10 +180,6 @@ function DeviceCard({
   const formatXAxis = (tickItem) => {
     return dayjs(tickItem).format("DD/MM");
   };
-
-
-
-
 
   return (
     <Card
@@ -206,7 +192,7 @@ function DeviceCard({
         height: "fit-content",
         maxWidth: "100%",
         margin: "0px",
-        padding: device.widget_type === "switch" ? "10px" : "0px",
+        padding: "0px",
       }}
     >
       <CardContent
@@ -223,33 +209,63 @@ function DeviceCard({
           <Typography variant="h5">{device.widget_name}</Typography>
           <Tooltip
             title={
-              <div>
+              device.config?.datasource_type === "MQTT" ? (
+                <div>
+                  <Typography variant="body2">
+                    Subscribed Topic: {device.config?.datasource_config?.sub_topic || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Publish Topic: {device.config?.datasource_config?.pub_topic || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Associated Entity Name:{" "}
+                    {device.config?.entity_name || "N/A"}
+                  </Typography>
+                </div>
+              ) : device.config?.datasource_type === "API" ? (
+                <div>
+                  <Typography variant="body2">
+                    Base URL:{" "}
+                    {device.config?.datasource_config?.base_url || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Endpoint:{" "}
+                    {device.config?.datasource_config?.endpoint || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Method: {device.config?.datasource_config?.method || "N/A"}
+                  </Typography>
+                  <Typography variant="body2">
+                    Polling Interval:{" "}
+                    {device.config?.datasource_config?.polling_interval ||
+                      "N/A"}
+                  </Typography>
+                </div>
+              ) : (
                 <Typography variant="body2">
-                  Subscribed Topic : {device.config?.sub_topic || "N/A"}
+                  No valid datasource type
                 </Typography>
-                <Typography variant="body2">
-                  Publish Topic : {device.config?.pub_topic || "N/A"}
-                </Typography>
-                <Typography variant="body2">
-                  Associated Entity Name : {device.config?.entity_name || "N/A"}
-                </Typography>
-              </div>
+              )
             }
+            style={{zIndex:15}}
           >
-            <IconButton>
+            <IconButton             style={{zIndex:15}}>
               <InfoIcon style={{ color: "#232939" }} />
             </IconButton>
           </Tooltip>
         </div>
+
         {device.entity_id ? (
-          <>
+          <div className="relative h-full">
             {device.widget_type === "switch" && (
               <div
                 style={{
+                  flex: "1 1 auto",
                   display: "flex",
-                  alignItems: "center",
-                  marginTop: "16px",
+                  flexDirection: "column",
+                  justifyContent: "center",
                 }}
+                className="m-2"
               >
                 <IOSSwitch
                   checked={device.estadoActual}
@@ -458,34 +474,83 @@ function DeviceCard({
                 id="customValueCard"
               >
                 <WidgetCustomValueCard
-value={
-  device.historial && device.historial.length > 0
-    ? (() => {
-        const selectedKey = device.config?.selected_key;
+                  value={
+                    device.historial && device.historial.length > 0
+                      ? (() => {
+                          const selectedKey = device.config?.selected_key;
 
-        // Encuentra la última entrada con la clave seleccionada
-        const lastEntryWithKey = [...device.historial]
-          .reverse()
-          .find((entry) => Object.prototype.hasOwnProperty.call(entry.data || {}, selectedKey));
+                          // Encuentra la última entrada con la clave seleccionada
+                          const lastEntryWithKey = [...device.historial]
+                            .reverse()
+                            .find((entry) =>
+                              Object.prototype.hasOwnProperty.call(
+                                entry.data || {},
+                                selectedKey
+                              )
+                            );
 
-        if (lastEntryWithKey) {
-          return lastEntryWithKey.data[selectedKey];
-        } else if (selectedKey) {
-          return `Key "${selectedKey}" not found in any data entry`;
-        } else {
-          return "No key selected";
-        }
-      })()
-    : "No data available"
-}
-
-
+                          if (lastEntryWithKey) {
+                            return lastEntryWithKey.data[selectedKey];
+                          } else if (selectedKey) {
+                            return `Key "${selectedKey}" not found in any data entry`;
+                          } else {
+                            return "No key selected";
+                          }
+                        })()
+                      : "No data available"
+                  }
                   html={device.config?.scriptHtml || ""}
                   css={device.config?.scriptCss || ""}
                 ></WidgetCustomValueCard>
               </div>
             )}
-          </>
+
+            {/* inactive state overlay*/}
+            {device.config.datasource_config?.status === "inactive" && (
+              <div
+                className={`absolute inset-0 flex items-center justify-center p-4 
+                ${
+                  device.widget_type === "switch"
+                    ? "bg-white/70"
+                    : "bg-white/70"
+                } 
+                backdrop-blur-sm rounded-lg z-10`}
+              >
+                <div
+                  className={`flex flex-col items-center text-center space-y-2 p-6 rounded-lg
+                  ${
+                    device.widget_type === "switch"
+                      ? "bg-white/90"
+                      : "bg-white/90 shadow-lg border border-gray-200"
+                  }`}
+                >
+                  <SignalWifiOffRoundedIcon
+                    className={`w-12 h-12 text-yellow-600`}
+                  />
+
+                  <h3
+                    className={`text-lg font-semibold${
+                      device.widget_type === "switch"
+                        ? "text-gray-700"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    Dispositivo desconectado
+                  </h3>
+
+                  <p
+                    className={`text-sm ${
+                      device.widget_type === "switch"
+                        ? "text-gray-600"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    Última conexión: {device.last_connection || "N/A"}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center bg-gray-100 border border-gray-300 rounded-lg p-6 text-gray-600 shadow-md">
             <InfoOutlinedIcon className="text-gray-500 text-4xl mb-2" />
@@ -495,6 +560,7 @@ value={
             </p>
           </div>
         )}
+
         <div className="inline-block mt-4">
           <IconButton
             className="text-my-blue hover:text-red-900 "

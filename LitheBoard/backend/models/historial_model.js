@@ -21,22 +21,34 @@ const db = require('../config/db');
  * number of affected rows or specific data related to the insertion.
  */
 async function saveMessage(entity_id, client_id, selected_key, data) {
-    console.log("data:", data);
-    console.log("selected_key:", selected_key);
-
     
     const query = 'INSERT INTO historial (entity_id, date, data, client_id, selected_key) VALUES (?, NOW(), ?, ?, ?)';
     
     try {
         const result = await db.promise().query(query, [entity_id, JSON.stringify(data), client_id, null]);
-        console.log('Mensaje guardado');
+        console.log('Message saved');
         return result;
     } catch (error) {
-        console.error('Error al guardar el mensaje:', error);
+        console.error('Saving message error', error);
         throw error;
     }
 }
 
+
+async function getLastHistoricByEntityId(entity_id) {
+    const query = "SELECT * FROM historial WHERE entity_id = ? ORDER BY date DESC LIMIT 1";
+
+    try {
+        const result = await db.promise().query(query, [entity_id]);
+        return result;
+    } catch (error) {
+        console.error('Getting historic error:', error);
+        throw error;
+    }
+    
+}
+
 module.exports = {
-  saveMessage
+  saveMessage,
+  getLastHistoricByEntityId
 };

@@ -12,14 +12,19 @@ const db = require("../config/db");
 async function getAlarmsByDevice(device_id, client_id) {
   const query = "SELECT * FROM alarms WHERE entity_id = ? AND client_id = ?";
   try {
-    const result = await db.promise().query(query, [device_id, client_id]);
-    console.log('Alarms found');
+    const [result] = await db.promise().query(query, [device_id, client_id]);
+    
+    if (result.length === 0) {
+      return null;
+    }
+    
     return result;
   } catch (error) {
     console.error("Error retrieving alarms:", error);
     throw error;
   }
 }
+
 
 /**
  * Saves a notification into the database when an alarm is triggered.
