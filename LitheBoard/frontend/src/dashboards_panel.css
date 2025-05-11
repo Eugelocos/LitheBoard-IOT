@@ -50,8 +50,8 @@
 
 .menu {
   grid-area: menu;
-  background-color: #f8f8f8;
-  padding: 20px;
+  background-color: #232939;
+  /*padding: 20px;*/
   height: 100%;
   width: 100%;
 }
@@ -106,7 +106,7 @@
 
 .dashboard-list {
   grid-area: dashboard-list;
-  background-color: #f8f8f8;
+  background-color: #232939;
 }
 
 .dashboards-panel {

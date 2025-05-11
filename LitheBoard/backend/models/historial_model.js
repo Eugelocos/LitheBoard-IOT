@@ -19,7 +19,7 @@ const db = require('../config/db');
  * @returns {Promise<Object>} - The `saveMessage` function is returning the result of the database query execution. This
  * result could include information about the success or failure of the query operation, such as the
  * number of affected rows or specific data related to the insertion.
- */
+ */ 
 async function saveMessage(entity_id, client_id, selected_key, data) {
     
     const query = 'INSERT INTO historial (entity_id, date, data, client_id, selected_key) VALUES (?, NOW(), ?, ?, ?)';

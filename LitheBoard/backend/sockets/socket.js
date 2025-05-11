@@ -8,7 +8,7 @@ specify allowed methods (`GET` and `POST`), and enable credentials. */
 module.exports = function (server) {
   const io = new Server(server, {
     cors: {
-        origin: `${process.env.WEB_URL}`, // Origen permitido
+        origin: `${process.env.WEB_URL}:${process.env.FRONTEND_PORT}`, // Origen permitido
         methods: ["GET", "POST"],       // Métodos permitidos
         credentials: true,
     },

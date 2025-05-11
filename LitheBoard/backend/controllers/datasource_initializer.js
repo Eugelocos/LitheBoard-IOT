@@ -8,6 +8,7 @@ let datasourceReadyPromise;
     datasourceReadyPromise = (async () => {
         try {
             const entities = await entityModel.getEntities();
+            console.log("entities", entities)
             datasource_controller = new DatasourceController(entities);
             datasource_controller.initialize();
             console.log('DatasourceController initialized successfully.');

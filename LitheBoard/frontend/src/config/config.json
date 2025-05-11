@@ -1,7 +1,8 @@
 {
     "BACKEND_URL": "http://localhost",
-    "WS_PORT": 3010,
+    "BACKEND_WS_PORT": 3007,
     "BACKEND_API_PORT": 3001,
     "FRONTEND_URL": "http://localhost",
-    "FRONTEND_PORT": 3000
+    "FRONTEND_PORT": 3000,
+    "FRONTEND_WS_PORT":3010
 }

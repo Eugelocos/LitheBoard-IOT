@@ -14,6 +14,24 @@ import AlarmList from "./Alarms/alarm_list";
 import ClientList from "./LinkedClients/client_list";
 import config from "@config";
 
+import RulechainList from "./Rulechain/rulechain_list"
+
+const entityTest = {
+  entity_id: 234,
+  client_id: 4,
+  disp_name: "RandomNumber",
+  datasource_type: "API",
+  datasource_config: {
+    method: "GET",
+    headers: "",
+    base_url: "https://random-data-api.com/api/number/random_number",
+    data_key: "fact",
+    endpoint: "",
+    query_params: "",
+    request_body: "",
+    polling_interval: "10000",
+  },
+};
 
 function DashboardPanel() {
   const navigate = useNavigate();
@@ -25,18 +43,18 @@ function DashboardPanel() {
   const [client_alert, setClientAlert] = useState(false);
   const [user, setUser] = useState(null);
   const [clients_asociated, setClientsAsociated] = useState([]);
+  const [rulechains, setRulechains] = useState([]);
 
   const [loading, setLoading] = useState(true);
 
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
-  console.log(user)
   useEffect(() => {
     const fetchData = async () => {
       try {
         const userResponse = await axios.get(`${base_url}/api/user`, {
           withCredentials: true,
         });
-        console.log("user repsone",userResponse);
+        console.log("user repsone", userResponse);
         setUser(userResponse.data);
 
         const devicesResponse = await getDevice(
@@ -54,7 +72,7 @@ function DashboardPanel() {
         console.error("Error al obtener los devices_list:", error);
         setLoading(false);
         if (error.response && error.response.status === 401) {
-          navigate("/login"); 
+          navigate("/login");
         }
       }
     };
@@ -63,6 +81,7 @@ function DashboardPanel() {
   }, [base_url, navigate]);
 
   useEffect(() => {
+    if (!user?.id) return;
     const fetchData = async () => {
       axios
         .get(`${base_url}/api/alarms/${user?.id}`)
@@ -72,6 +91,22 @@ function DashboardPanel() {
         .catch((error) => {
           console.error("Error fetching alarms:", error);
         });
+    };
+    fetchData();
+  }, [user, base_url]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          `${base_url}/api/data/rulechains/get`,
+          { params: { client_id: user.id } }
+        );
+        setRulechains(response.data);
+      } catch (error) {
+        console.error("Error fetching rulechains:", error);
+      }
     };
     fetchData();
   }, [user, base_url]);
@@ -118,10 +153,7 @@ function DashboardPanel() {
         client_id: user.id,
       };
 
-      await axios.post(
-        `${base_url}/api/dashboards/set`,
-        newDashboard
-      );
+      await axios.post(`${base_url}/api/dashboards/set`, newDashboard);
 
       const updatedDashboards = await axios.get(
         `${base_url}/api/data/dashboards/${user.id}`
@@ -155,22 +187,17 @@ function DashboardPanel() {
 
   const handleLogout = async () => {
     try {
-      await axios.post(
-        `${base_url}/api/logout`,
-        {},
-        { withCredentials: true }
-      );
+      await axios.post(`${base_url}/api/logout`, {}, { withCredentials: true });
       navigate("/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
     }
   };
 
-  const [drawer_open, setDrawerOpen] = useState(false); 
+  const [drawer_open, setDrawerOpen] = useState(false);
 
   const handleToggleDrawer = () => {
     setDrawerOpen(!drawer_open);
-
   };
 
   /*if (loading) {
@@ -221,6 +248,7 @@ function DashboardPanel() {
             width: 250,
             backgroundColor: "#232939",
             zIndex: (theme) => theme.zIndex.drawer - 100,
+            borderRight: "none"
           },
         }}
         variant="permanent"
@@ -269,9 +297,9 @@ function DashboardPanel() {
 
       <button onClick={handleAddDevice}></button>
       <div className="menu min-w-full max-w-full">
-        <div className="menu-content sm:max-w-full h-full">
+        <div className="menu-content sm:max-w-full h-[100%] flex">
           <div
-            className="dashboards min-[500px]:p-10 px-30 h-full"
+            className="dashboards min-[500px]:p-10 px-30 w-full m-[0.25rem]"
             style={{ display: "none" }}
           >
             {dashboards.map((dashboard, index) => (
@@ -301,7 +329,7 @@ function DashboardPanel() {
           </div>
 
           <div
-            className="devices-list min-[500px]:p-10 px-30 h-full"
+            className="devices-list min-[500px]:p-10 px-30 w-full m-[0.25rem]"
             style={{ display: "none" }}
           >
             <DeviceList
@@ -309,10 +337,11 @@ function DashboardPanel() {
               handleAddDevice={handleAddDevice}
               setEntities={setEntities}
               user={user}
+              rulechains={rulechains}
             ></DeviceList>
           </div>
 
-          <div className="dashboard-list min-[500px]:p-10 px-30 h-full shadow-[0px_0px_10px_rgba(0,0,0,0.1)]">
+          <div className="dashboard-list min-[500px]:p-10 px-30 w-full m-[0.25rem]">
             <DashboardListPanel
               dashboards={dashboards}
               handleAddDashboard={handleAddDashboard}
@@ -322,7 +351,7 @@ function DashboardPanel() {
           </div>
 
           <div
-            className="alarms-list min-[500px]:p-10 px-30 h-full"
+            className="alarms-list min-[500px]:p-10 px-30 w-full m-[0.25rem]"
             style={{ display: "none" }}
           >
             <AlarmList
@@ -330,21 +359,33 @@ function DashboardPanel() {
               alarms={alarms}
               setAlarms={setAlarms}
               entities={entities}
-              
             ></AlarmList>
+          </div>
+
+          <div
+            className="rulechain-editor min-[500px]:p-10 px-30 w-full m-[0.25rem]"
+            style={{ display: "none" }}
+          >
+            <RulechainList entity={entityTest} rulechains={rulechains} setRulechains={setRulechains} entities={entities} user={user}></RulechainList>
           </div>
 
           {user?.access_level_id === 1 && (
             <div
-              className="clients-settings min-[500px]:p-10 px-30 h-full"
+              className="clients-settings min-[500px]:p-10 px-30 w-full m-[0.25rem]"
               style={{ display: "none" }}
             >
-              <ClientList client_id={user?.id} dashboards={dashboards} clients_asociated={clients_asociated} setClientsAsociated={setClientsAsociated} setDashboards={setDashboards}></ClientList>
+              <ClientList
+                client_id={user?.id}
+                dashboards={dashboards}
+                clients_asociated={clients_asociated}
+                setClientsAsociated={setClientsAsociated}
+                setDashboards={setDashboards}
+              ></ClientList>
             </div>
           )}
 
           <div
-            className="profile-settings min-[500px]:p-10 px-30 h-full"
+            className="profile-settings min-[500px]:p-10 px-30 w-full m-[0.25rem]"
             style={{ display: "none" }}
           >
             <ProfileSettingsPanel user={user} handleLogout={handleLogout} />

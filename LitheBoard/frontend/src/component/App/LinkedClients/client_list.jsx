@@ -19,6 +19,8 @@ import {
   Drawer,
   Toolbar,
   TextField,
+  Typography,
+  Tooltip, Fab
 } from "@mui/material";
 import config from "@config";
 function ClientList({
@@ -270,8 +272,8 @@ function ClientList({
 
   return (
     <div
-      className="min-w-fit min-h-full w-full h-full bg-white border border-gray-300 rounded p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1)] m-1/4 overflow-hidden"
-      id="alarm-list-table"
+      className="client-list h-full overflow-hidden overflow-x-auto  bg-white border border-gray-300 rounded-[12px] p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1)"
+      
     >
       <Dialog open={open_dialog} onClose={handleCloseDialog}>
         <DialogTitle>Assigned Dashboards</DialogTitle>
@@ -312,16 +314,34 @@ function ClientList({
         </DialogActions>
       </Dialog>
       <div className="h-full w-full">
-        <div className="flex justify-between items-center py-2 px-4">
-          <h2 className="font-medium text-gray-900 text-xl">Clients</h2>
-          <button
-            id="show-add-alarm-panel"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white hover:bg-gray-200/75 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors duration-200"
-          >
-            <AddRoundedIcon />
-          </button>
+        <div className="flex justify-between items-center py-4 px-6">
+          <Typography
+                    variant="h5"
+                    className="text-lg font-semibold mb-4"
+                    style={{ color: "#232939" }}
+                  >
+                    Clients Associated
+                  </Typography>
+                  <Tooltip title="Add a client" sx={{ display: "flex" }}>
+                    <Fab
+                      color="primary" // usa tu color primario #232939 en el theme o con sx
+                      size="small"
+                      onClick={() => {}}
+                      sx={{
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                        backgroundColor: "#232939",
+                        "&:hover": {
+                          backgroundColor: "#1f2736",
+                          transform: "scale(1.05)",
+                        },
+                        transition: "all 0.2s ease-in-out",
+                      }}
+                    >
+                      <AddRoundedIcon />
+                    </Fab>
+                  </Tooltip>
         </div>
-        <div className="h-[93%] w-full">
+        <div className="h-[calc(100%-72px)] w-full">
           <DataGrid
             rows={rows}
             columns={columns}
@@ -331,9 +351,25 @@ function ClientList({
                 paginationModel: { page: 0, pageSize: 5 },
               },
             }}
-            pageSizeOptions={[5, 10]}
+            pageSizeOptions={[5, 10,20]}
             columnBufferPx={5}
             hideFooterPagination={!rows.length}
+            sx={{
+              borderRadius: "12px",
+              ".MuiDataGrid-columnHeaders": {
+                backgroundColor: "#f9fafb",
+                fontWeight: 600, // más peso
+                fontSize: "1rem", // un poquito más grande
+                color: "#232939",
+              },
+              "& .MuiDataGrid-cell": {
+                fontSize: "0.900rem",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "rgba(0, 0, 0, 0.04)",
+                transition: "background-color 0.2s ease-in-out",
+              },
+            }}
           />
         </div>
       </div>

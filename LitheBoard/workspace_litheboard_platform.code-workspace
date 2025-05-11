@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"docwriter.progress.trackFunctions": false,
+		"docwriter.style": "JSDoc",
+		"postman.settings.dotenv-detection-notification-visibility": false
+	}
+}

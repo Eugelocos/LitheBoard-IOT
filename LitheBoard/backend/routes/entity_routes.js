@@ -6,6 +6,7 @@ const {
   insertEntities,
   updateEntity,
   deleteEntity,
+  updateEntityRulechain
 } = require("../controllers/api/entity_controller");
 
 /*This line of code is setting up a GET route in the Express router. 
@@ -35,12 +36,16 @@ handle the request. This route is typically used for updating an existing entity
 in the system/database based on the provided data in the request body.*/
 router.put("/data/entities/update", updateEntity);
 
-/*`router.put("/data/entities/update", updateEntity);` is setting up a PUT route
-in the Express router.When a PUT request is made to the "/data/entities/update" endpoint,
-the `updateEntity` function from the `entity_controller` module will be called to 
-handle the request. This route is typically used for updating an existing entity 
-in the system/database based on the provided data in the request body.
-router.put("/data/entities/update", updateEntity);*/
+
+/* The line `router.delete("/entities/delete/:entity_id", deleteEntity);` is setting up a DELETE route
+in the Express router. When a DELETE request is made to the "/entities/delete/:entity_id" endpoint,
+the `deleteEntity` function from the `entity_controller` module will be called to handle the
+request. */
 router.delete("/entities/delete/:entity_id", deleteEntity);
+
+/* This line of code is setting up a PUT route in the Express router. When a PUT request is made to the
+"/entities/update/rulechain/:entity_id" endpoint, the `updateEntityRulechain` function from the
+`entity_controller` module will be called to handle the request. */
+router.put("/entities/update/rulechain/:entity_id", updateEntityRulechain);
 
 module.exports = router;

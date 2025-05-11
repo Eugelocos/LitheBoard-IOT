@@ -57,8 +57,10 @@ const getEntities = async (req, res) => {
  * @memberof controllers.api.entity
  */
 const insertEntities = async (req, res) => {
-  const { client_id, disp_name, datasource_type, datasource_config } = req.body;
-
+  const { client_id, disp_name, datasource_type, datasource_config, rulechain_id} = req.body;
+  if(!client_id || !disp_name || !datasource_type || !datasource_config){
+    res.status(500).send({ message: 'Missing required data'});
+  }
   try {
       const token = await generateToken();
 
@@ -68,14 +70,15 @@ const insertEntities = async (req, res) => {
           const { sub_topic, pub_topic } = datasource_config;
           query = `
               INSERT INTO entities 
-              (client_id, disp_name, datasource_type, datasource_config) 
-              VALUES (?, ?, ?, ?)
+              (client_id, disp_name, datasource_type, datasource_config, rulechain_id) 
+              VALUES (?, ?, ?, ?, ?)
           `;
           values = [
               client_id,
               disp_name,
               datasource_type,
               JSON.stringify({ sub_topic, pub_topic, token }),
+              rulechain_id || 0
           ];
       } else if (datasource_type === 'API') {
           const {
@@ -91,8 +94,8 @@ const insertEntities = async (req, res) => {
 
           query = `
               INSERT INTO entities 
-              (client_id, disp_name, datasource_type, datasource_config) 
-              VALUES (?, ?, ?, ?)
+              (client_id, disp_name, datasource_type, datasource_config, rulechain_id) 
+              VALUES (?, ?, ?, ?,?)
           `;
           values = [
               client_id,
@@ -108,6 +111,7 @@ const insertEntities = async (req, res) => {
                   request_body,
                   data_key,
               }),
+              rulechain_id || 0
           ];
       } else {
           throw new Error('Unsupported datasource type');
@@ -193,17 +197,17 @@ const getEntityById = async (req, res) => {
  * @memberof controllers.api.entity
  */
 const updateEntity = async (req, res) => {
-  const { entity_id, disp_name, datasource_config} = req.body;
+  const { entity_id, disp_name, datasource_config, rulechain_id} = req.body;
   if (!entity_id || !disp_name || !datasource_config) {
     return res.status(400).json({ message: "Missing required data" });
   }
 
   const query = `
       UPDATE entities
-      SET disp_name = ?, datasource_config = ?
+      SET disp_name = ?, datasource_config = ?, rulechain_id = ?
       WHERE entity_id = ?
     `;
-  const values = [disp_name, datasource_config, entity_id];
+  const values = [disp_name, JSON.stringify(datasource_config), rulechain_id,entity_id];
 
   try {
     const [result] = await db.promise().query(query, values);
@@ -218,7 +222,8 @@ const updateEntity = async (req, res) => {
     const updatedEntity = {
       entity_id,
       disp_name,
-      datasource_config: JSON.parse(datasource_config), // Asegúrate de convertirlo de nuevo a objeto si es necesario
+      datasource_config: JSON.stringify(datasource_config),
+      rulechain_id
     };
 
     // Obtén el tipo de datasource desde la entidad existente en el DatasourceController
@@ -241,64 +246,92 @@ const updateEntity = async (req, res) => {
   }
 };
 
+
 /**
- * 
- * The function `deleteEntity` deletes an entity from a database and updates related widgets and alarms
- * accordingly.
- * @param {object} req - The `req` parameter in the `deleteEntity` function stands for the request object. It
- * contains information about the HTTP request that triggered the function, such as request headers,
- * parameters, body, and more. In this case, `req.params` is used to extract the `entity_id` from
- * @param {object} res - The `res` parameter in the `deleteEntity` function is the response object that will be
- * used to send a response back to the client making the request. It is typically used to set the
- * status code and send JSON data in response to the client's request.
- * @returns {object} The `deleteEntity` function is returning a JSON response with a success message if the
- * entity and related widgets were updated successfully. If the entity was not found (no rows
- * affected), it returns a 404 status with a message indicating that the entity was not found. In case
- * of any errors during the process, it returns a 500 status with an error message.
+ * The function `deleteEntity` deletes an entity and its related data from a database while handling
+ * potential errors.
+ * @param req - The code you provided is a function that handles the deletion of an entity and its
+ * related data from a database. It first deletes entries from the 'historial' table, then updates the
+ * 'widgets' and 'alarms' tables to unlink them from the entity, and finally deletes the entity itself
+ * from
+ * @param res - The `res` parameter in the `deleteEntity` function is the response object that will be
+ * used to send back the response to the client making the request. It is typically used to set the
+ * status code and send JSON data back to the client.
+ * @returns The `deleteEntity` function returns a JSON response with a success message if the entity
+ * and related data are successfully deleted. If the entity is not found, it returns a 404 status with
+ * a message indicating that the entity was not found. In case of any errors during the deletion
+ * process, it returns a 500 status with an error message specifying the issue encountered while
+ * deleting the entity or updating related data
  * @function
  * @memberof controllers.api.entity
  */
 const deleteEntity = async (req, res) => {
   const { entity_id } = req.params;
 
-  const updateWidgetsQuery =
-    "UPDATE widgets SET entity_id = NULL WHERE entity_id = ?";
-  const updateAlarmsQuery =
-    "UPDATE alarms SET entity_id = NULL WHERE entity_id = ?";
-  const deleteEntityQuery = "DELETE FROM entities WHERE entity_id = ?";
+  // Queries to clean up related data
+  const deleteHistorialQuery = 'DELETE FROM historial WHERE entity_id = ?';
+  const updateWidgetsQuery = 'UPDATE widgets SET entity_id = NULL WHERE entity_id = ?';
+  const updateAlarmsQuery = 'UPDATE alarms SET entity_id = NULL WHERE entity_id = ?';
+  const deleteEntityQuery = 'DELETE FROM entities WHERE entity_id = ?';
 
   try {
-    const [widgetsResult] = await db
-      .promise()
-      .query(updateWidgetsQuery, [entity_id]);
-    const [alarmsResult] = await db
-      .promise()
-      .query(updateAlarmsQuery, [entity_id]);
-    const [entityResult] = await db
-      .promise()
-      .query(deleteEntityQuery, [entity_id]);
+    // Remove historial entries first to satisfy FK constraints
+    await db.promise().query(deleteHistorialQuery, [entity_id]);
 
-    if (entityResult.affectedRows === 0) {
-      return res.status(404).json({ message: "Entidad not found" });
+    // Unlink widgets and alarms
+    await db.promise().query(updateWidgetsQuery, [entity_id]);
+    await db.promise().query(updateAlarmsQuery, [entity_id]);
+
+    // Finally delete the entity
+    const [result] = await db.promise().query(deleteEntityQuery, [entity_id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Entidad not found' });
     }
 
-    res
-      .status(200)
-      .json({ message: "Entity and widgets successfully upated" });
+    return res.status(200).json({ message: 'Entity and related data successfully deleted' });
   } catch (err) {
-    console.error("Error deleting entity or updating widgets or alarms:", err);
+    console.error('Error deleting entity or related data:', err);
     return res.status(500).json({
-      message:
-        "Error in the server on deleting entity or updating widgets or alarms:",
+      message: 'Error in the server on deleting entity or updating related data',
       error: err.message,
     });
   }
 };
+
+const updateEntityRulechain = async (req, res) => {
+  const {entity_id} = req.params;
+  const {rulechain} = req.body;
+  if (!entity_id || !rulechain) {
+    return res.status(400).json({ message: "Missing required data" });
+  }
+  const jsonRulechain = JSON.stringify(rulechain);
+  const query = `UPDATE entities 
+       SET datasource_config = JSON_SET(
+         datasource_config, 
+         '$.rulechain', 
+         ?
+       ) 
+       WHERE entity_id = ?`;
+  const values = [jsonRulechain, entity_id];
+  try {
+    const [result] = await db.promise().query(query, values);
+
+    if (result.affectedRows === 0) {
+      throw new Error('Entity datasource_config not found');
+    }
+
+    res.json({ message: "Entity rulechain successfully upated" });
+  } catch (error) {
+    console.error("Error al actualizar el rulechain:", error);
+    res.status(500).json({ message: "Error updating rulechain", error: error.message });
+  }
+}
 
 module.exports={
     getEntities,
     getEntityById,
     insertEntities,
     updateEntity,
-    deleteEntity
+    deleteEntity,
+    updateEntityRulechain
 }

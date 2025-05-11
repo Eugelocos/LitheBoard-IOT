@@ -30,7 +30,8 @@ const EditWidgetDrawer = ({
   const fields = widgetFieldsConfig[widget_type] || [];
 
   useEffect(() => {
-    if (is_widget_editor_drawer_open && widget_id) {
+    if (is_widget_editor_drawer_open) {
+      if( widget_id) {
       const widget = devices_list.find((item) => item.widget_id === widget_id);
       console.log("widget : ", widget_id)
       if (widget) {
@@ -52,8 +53,10 @@ const EditWidgetDrawer = ({
           entity_id: widget.entity_id,
         });
       }
-    }else{
-      console.error("no widget_id, ", widget_id)
+      }
+      else {
+              console.error("no widget_id, ", widget_id)
+      }
     }
   }, [is_widget_editor_drawer_open, widget_id, devices_list, entities]);
 

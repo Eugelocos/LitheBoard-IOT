@@ -191,5 +191,22 @@ const sendOtpEmail = async (email, otp) => {
   return transporter.sendMail(mailOptions);
 };
 
-// Export the sendOtpEmail function for use in other modules
-module.exports = { sendOtpEmail };
+
+/**
+ * Envía un email de alerta simple.
+ * @param {string} to      Dirección destino.
+ * @param {string} subject Asunto del correo.
+ * @param {string} text    Cuerpo de texto plano.
+ */
+async function sendAlertEmail(to, subject, text) {
+    const mailOptions = {
+      from: `"LitheBoard Alert" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      text
+    };
+    return transporter.sendMail(mailOptions);
+  }
+
+
+module.exports = { sendOtpEmail, sendAlertEmail};

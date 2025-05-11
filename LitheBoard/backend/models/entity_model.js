@@ -14,7 +14,8 @@ async function getEntities() {
             client_id,
             disp_name,
             datasource_type,
-            datasource_config
+            datasource_config,
+            rulechain_id
         FROM entities
     `;
 
@@ -114,6 +115,8 @@ async function updateEntityStatus(client_id, entity_id, status) {
     throw error;
   }
 }
+
+
 
 module.exports = {
   getEntities,

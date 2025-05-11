@@ -18,6 +18,7 @@ const client_routes = require('./routes/client_routes');
 const dashboard_routes = require('./routes/dashboard_routes');
 const alarm_routes = require('./routes/alarm_routes');
 const notification_routes = require('./routes/notification_routes');
+const rulechain_routes = require('./routes/rulechain_routes')
 
 const DatasourceController = require('./controllers/datasource_controller');
 const entityModel = require('./models/entity_model');
@@ -28,7 +29,7 @@ const app = express();
 const port = process.env.BACKEND_PORT || 3001;
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://backend:3000', 'http://tongavla.mooo.com:3000'], // Permitir orígenes específicos
+  origin: ['http://localhost:3000', 'http://backend:3000', 'http://tongavla.mooo.com:3000', 'http://localhost:3007'], // Permitir orígenes específicos
   //allowedHeaders: ['Content-Type', 'Authorization'], // Encabezados permitidos
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos permitidos
   credentials: true // Permite el envío de cookies, que puede ser útil para CORS
@@ -66,6 +67,7 @@ app.use("/api", historic_routes);
 app.use("/api", client_routes);
 app.use("/api", dashboard_routes);
 app.use("/api", alarm_routes);
+app.use("/api", rulechain_routes);
 //#endregion
 
 
@@ -89,18 +91,10 @@ connection using the `configureSocket` function. It then initializes a MQTT sock
 const server = http.createServer(app);
 const io = configureSocket(server);
 mqtt_socket.init(io);
-server.listen(3010, () => {
-  console.log(`Websocket server runing in ${process.env.WEB_URL}:3010`);
+server.listen(process.env.BACKEND_WS_PORT, () => {
+  console.log(`Websocket server runing in ${process.env.WEB_URL}:${process.env.BACKEND_WS_PORT}`);
 });
 //#endregion
-
-
-
-
-app.get("/hola", async (req, res) => {    // Devolver las notificaciones
-  res.status(200).json("la concha de la lora");
-})
-
 
 
 

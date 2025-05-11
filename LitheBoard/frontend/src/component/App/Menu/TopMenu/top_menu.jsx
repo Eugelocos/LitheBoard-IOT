@@ -154,6 +154,7 @@ function TopMenu({
         sx={{
           backgroundColor: "#232939",
           zIndex: (theme) => theme.zIndex.drawer + 1,
+          boxShadow: 'none'
         }}
       >
         <Toolbar>

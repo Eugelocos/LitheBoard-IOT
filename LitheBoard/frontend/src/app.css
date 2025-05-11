@@ -33,7 +33,7 @@ display: none;
 
 
 
-#dispContainer {
+/*#dispContainer {
   display: inline-flex;
   flex-wrap: nowrap;
   gap: 20px; 
@@ -69,9 +69,9 @@ display: none;
     'cont cont cont cont' auto/
     25% 25% 25% 25% ;
   background-color: #ffffff;
-}
+}*/
 
-@media (min-width: 10px) {
+/*@media (min-width: 10px) {
   #dispContainer {
     display: inline-flex;
     align-content: start;
@@ -84,7 +84,7 @@ display: none;
     grid-template-columns: repeat(2, auto);
     grid-template-rows: repeat(minmax(1, 2) auto);
   }
-}
+}*/
 @media (max-height: 600px) {
   .contenedor {
     position: relative;

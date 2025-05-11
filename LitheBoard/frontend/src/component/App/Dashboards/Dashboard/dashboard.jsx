@@ -18,6 +18,7 @@ import mqtt from "mqtt";
 import socket from "../../../../socket.js"
 import dayjs from "dayjs";
 import config from "@config";
+import { Divider } from "@mui/material";
 
 
 function Dashboard(props) {
@@ -195,44 +196,62 @@ function Dashboard(props) {
 
   return (
     <div>
-      <div
-        ref={ref_container}
-        className="contenedor min-w-fit min-h-full w-full h-full bg-white border border-gray-300 rounded p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1)] m-1/4 overflow-hidden "
-        id="contenedor"
-      >
-        <div
-          className="flex justify-between items-center py-2 px-4 min-w-full"
-          id="top"
-        >
-          <h2 className=" font-medium text-gray-900 text-xl">
-            {dashboard_name}
-          </h2>
-          <button
-            onClick={() => showWidgetFormSelection(false)}
-            id="show-add-device-panel"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white hover:bg-gray-200/75 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors duration-200"
-          >
-            <FontAwesomeIcon icon={faPlus} />
-          </button>
-        </div>
+<div
+  ref={ref_container}
+  className="contenedor w-full h-full min-w-fit min-h-full bg-white border border-gray-300 rounded-xl shadow-sm m-1/4 overflow-hidden"
+  id="contenedor"
+>
+  <div className="flex items-center justify-between py-4 px-5 w-full bg-white mb-3">
+    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+      {dashboard_name}
+    </h2>
+    <button
+      onClick={() => showWidgetFormSelection(false)}
+      className="flex items-center justify-center w-10 h-10 transition-all duration-200 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    >
+      <FontAwesomeIcon icon={faPlus} className="text-gray-700 text-xl" />
+    </button>
+  </div>
 
-        <div
-          id="dispContainer"
-          className="-m-[9px] mt-[20px] overflow-scroll h-[80vh] dispContainer"
-        >
-          <DeviceList
-            devices_list={devices_list}
-            setDevicesList={setDevicesList}
-            handleMouseOver={handleMouseOver}
-            setDevice={setEntities}
-            toggleSwitchState={toggleSwitchState}
-            openWidgetEditor={setIsWidgetEditorDrawerOpen}
-            setEditedWidgetId={setEditedWidgetId}
-            setEditedWidgetType={setEditedWidgetType}
-          />
-          <Disps />
-        </div>
-      </div>
+  <Divider className="h-px mt-4 mb-5 bg-gray-200" />
+
+  <div
+    id="dispContainer"
+    className="flex flex-wrap gap-5 p-6 bg-gray-50 h-[calc(100vh-160px)] overflow-y-auto scrollbar-custom"
+  >
+    <style jsx>{`
+      .scrollbar-custom::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      .scrollbar-custom::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 6px;
+        margin: 8px;
+      }
+      .scrollbar-custom::-webkit-scrollbar-thumb {
+        background: #b0b0b0;
+        border-radius: 6px;
+        border: 2px solid #f1f1f1;
+      }
+      .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+        background: #909090;
+      }
+    `}</style>
+
+    <DeviceList
+      devices_list={devices_list}
+      setDevicesList={setDevicesList}
+      handleMouseOver={handleMouseOver}
+      setDevice={setEntities}
+      toggleSwitchState={toggleSwitchState}
+      openWidgetEditor={setIsWidgetEditorDrawerOpen}
+      setEditedWidgetId={setEditedWidgetId}
+      setEditedWidgetType={setEditedWidgetType}
+    />
+    <Disps />
+  </div>
+</div>
 
 
       <div ref={sum_disp_ref} id="sumDisp" style={{ display: "none" }}>

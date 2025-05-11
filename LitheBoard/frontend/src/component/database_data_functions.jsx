@@ -55,7 +55,6 @@ async function getDashboardWidgets(dashboard_id, client_id) {
     const devices = entities_response.data
       .map((data) => {
         try {
-          console.log("dataaaaaaaaaaa",data)
           const config = {
             ...JSON.parse(data.config_data),  // Propiedades de config_data
             ...data.config        // Propiedades de config

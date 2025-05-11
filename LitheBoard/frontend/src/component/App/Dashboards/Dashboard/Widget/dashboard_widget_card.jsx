@@ -182,19 +182,27 @@ function DeviceCard({
   };
 
   return (
-    <Card
-      style={{
-        backgroundColor: "#fff",
-        color: "#232939",
-        borderRadius: "12px",
-        boxShadow: "0 6px 12px rgba(0, 0, 0, 0.1)",
-        width: device.widget_type === "switch" ? "fit-content" : "45%",
-        height: "fit-content",
-        maxWidth: "100%",
-        margin: "0px",
-        padding: "0px",
-      }}
-    >
+<Card
+  className={`
+    bg-white 
+    text-gray-800
+    transition-all
+    ${device.widget_type === "switch" ? "w-fit" : "w-[45%]"} 
+    h-fit 
+    max-w-full 
+    m-1.5 
+    p-0 
+    overflow-hidden 
+    hover:shadow-sm
+    backdrop-blur-[2px]
+    ${device.widget_type !== "switch" && "min-w-[300px]"}
+  `}
+  style={{
+    borderRadius: "12px",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+    border: "1px solid rgba(245, 245, 245, 0.8)"
+  }}
+>
       <CardContent
         style={{ height: "100%", display: "flex", flexDirection: "column" }}
       >

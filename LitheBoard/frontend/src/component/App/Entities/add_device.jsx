@@ -13,10 +13,11 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { setDevice } from "../../database_data_functions";
 import StatusBadge from "../../status_badge";
 
-function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user }) {
+function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user, rulechains}) {
   const disp_name_ref = useRef();
   const sub_topic_ref = useRef();
   const pub_topic_ref = useRef();
+
   const api_url_ref = useRef();
   const api_method_ref = useRef();
   const api_polling_interval_ref = useRef();
@@ -25,14 +26,15 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user }) {
   const api_request_body_ref = useRef();
   const api_data_key_ref = useRef();
 
+
+  const [rulechainId, setRulechainId] = useState("");
   const [datasourceType, setDatasourceType] = useState("MQTT");
   const [status, setStatus] = useState(0); // 0: initial, 1: loading, 2: success, 3: error
 
   const handleAddDevice = () => {
     setStatus(1);
     const dispName = disp_name_ref.current.value;
-    console.log("datasource_type_ref.current", datasourceType);
-
+    const rulechain = rulechainId;
     let datasourceConfig = {};
 
     if (datasourceType === "MQTT") {
@@ -50,15 +52,16 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user }) {
         request_body: api_request_body_ref.current.value,
       };
     }
-    console.log("datasourceConfig:", datasourceConfig);
+
     if (dispName && datasourceConfig) {
       const entity = {
         client_id: user.id,
         disp_name: dispName,
         datasource_type: datasourceType,
         datasource_config: datasourceConfig,
+        rulechain_id: rulechain.rulechain_id
       };
-
+      console.log("entity:", entity)
       setDevice(entity)
         .then((response) => {
           setStatus(2);
@@ -78,7 +81,7 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user }) {
             api_headers_ref.current.value = "";
             api_request_body_ref.current.value = "";
           }
-
+          setRulechainId("");
           showDeviceList(true);
         })
         .catch((error) => {
@@ -119,6 +122,19 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user }) {
             />
           </FormControl>
 
+            <FormControl fullWidth>
+              <InputLabel id="rulechain-label">Rulechain Assigned</InputLabel>
+              <Select
+                labelId="rulechain-label"
+                value={rulechainId}
+                label="Rulechain Assigned"
+                onChange={e => setRulechainId(e.target.value)}
+              >
+                {rulechains.map((rc, idx) => (
+                  <MenuItem key={rc.id ?? idx} value={rc.id ?? rc}> {rc.name ?? rc} </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           <FormControl fullWidth margin="normal">
             <InputLabel id="datasourceType-label">Datasource Type</InputLabel>
             <Select

@@ -51,7 +51,7 @@ const ProfileSettingsPanel = ({ user, handleLogout }) => {
   };
 
   return (
-    <div className="min-w-fit min-h-fit w-fit h-fit bg-white border border-gray-300 rounded shadow-[0px_0px_10px_rgba(0,0,0,0.1)] m-1/4 overflow-hidden p-4">
+    <div className="min-w-fit min-h-fit w-fit h-fit bg-white border border-gray-300 rounded-[12px] shadow-[0px_0px_10px_rgba(0,0,0,0.1)] m-1/4 overflow-hidden p-4">
       <div className="flex justify-between items-center py-2 px-4">
         <div>
           <h2 className=" font-medium text-gray-900 text-2xl">Perfil</h2>
