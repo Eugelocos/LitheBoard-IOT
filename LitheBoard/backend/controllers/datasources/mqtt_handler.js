@@ -2,16 +2,15 @@ const mqtt = require("mqtt");
 require("dotenv").config();
 const { getLastHistoricByEntityId } = require("../../models/historial_model");
 const { updateEntityStatus } = require("../../models/entity_model");
+const { emitEntityStateChange } = require("../../sockets/ws_helper");
 
 let mqttClient = null;
 const entityMap = new Map();
 const heartbeatTimers = new Map();
 
 function initialize(entity, eventEmitter) {
-
   const key = `${entity.client_id}:${entity.entity_id}`;
   entityMap.set(key, entity);
-
 
   if (!mqttClient) {
     mqttClient = mqtt.connect(process.env.MQTT_BROKER_URL, {
@@ -43,31 +42,30 @@ function initialize(entity, eventEmitter) {
     });
   }
 
-
   subscribeToTopics(entity);
   handleReconnection(entity);
   startHeartbeatTimer(entity);
 }
 
 function subscribeToTopics(entity) {
-    const { client_id, entity_id, datasource_config } = entity;
-    const base = `users/${client_id}/device/${entity_id}`;
-    const sub  = datasource_config.sub_topic;
-    const req  = datasource_config.request_topic || "requests";
-    const hb   = datasource_config.heartbeat_topic || "heartbeat";
-  
-    const topics = [
-      `${base}/data/${sub}`,          // datos del device
-      `${base}/${req}/${sub}`,        // requests del device
-      `${base}/${hb}/${sub}`,         // heartbeats del device
-    ];
-  
-    topics.forEach((topic) => {
-      mqttClient.subscribe(topic, (err) => {
-        if (err) console.error(`Error suscribiendo a ${topic}:`, err);
-        else     console.log(`Subscribed to ${topic}`);
-      });
+  const { client_id, entity_id, datasource_config } = entity;
+  const base = `users/${client_id}/device/${entity_id}`;
+  const sub = datasource_config.sub_topic;
+  const req = datasource_config.request_topic || "requests";
+  const hb = datasource_config.heartbeat_topic || "heartbeat";
+
+  const topics = [
+    `${base}/data/${sub}`, // datos del device
+    `${base}/${req}/${sub}`, // requests del device
+    `${base}/${hb}/${sub}`, // heartbeats del device
+  ];
+
+  topics.forEach((topic) => {
+    mqttClient.subscribe(topic, (err) => {
+      if (err) console.error(`Error suscribiendo a ${topic}:`, err);
+      else console.log(`Subscribed to ${topic}`);
     });
+  });
 }
 
 //#region Reconnections
@@ -144,7 +142,19 @@ function handleIncomingMessage(topic, message, eventEmitter) {
       console.warn(`No entity for topic ${topic}`);
       return;
     }
-    console.log("entity", entity)
+
+    if (entity.datasource_config.status !== "active") {
+      entity.datasource_config.status = "active";
+      console.log(`Entity ${entity.entity_id} marked active on any message.`);
+      updateEntityStatus(entity.client_id, entity.entity_id, "active");
+      emitEntityStateChange({
+        entity_id: entity.entity_id,
+        status: "active",
+      });
+    }
+
+    startHeartbeatTimer(entity);
+
     if (topic.includes(`/data/${entity.datasource_config.sub_topic}`)) {
       handleDeviceStateUpdate(entity, data, eventEmitter);
     } else if (
@@ -179,11 +189,17 @@ function startHeartbeatTimer(entity) {
   const key = `${entity.client_id}:${entity.entity_id}`;
   const timeout = entity.datasource_config.heartbeat_timeout || 60000;
   if (heartbeatTimers.has(key)) clearTimeout(heartbeatTimers.get(key));
-
+    console.log("######################################")
+    console.log("entity:", entity)
   const timer = setTimeout(async () => {
     entity.datasource_config.status = "inactive";
+
     console.log(`Heartbeat timeout for ${key}. Marking inactive.`);
     await updateEntityStatus(entity.client_id, entity.entity_id, "inactive");
+    emitEntityStateChange({
+      entity_id: entity.entity_id,
+      status: "inactive",
+    });
   }, timeout);
 
   heartbeatTimers.set(key, timer);
@@ -195,6 +211,10 @@ function handleDeviceHeartbeat(entity, data) {
     entity.datasource_config.status = "active";
     console.log(`Entity ${entity.entity_id} is now active.`);
     updateEntityStatus(entity.client_id, entity.entity_id, "active");
+    emitEntityStateChange({
+      entity_id: entity.entity_id,
+      status: "active",
+    });
   }
   startHeartbeatTimer(entity);
 }
@@ -203,37 +223,32 @@ function handleDeviceHeartbeat(entity, data) {
 
 //#region Publish
 async function publishMessage(entity, massage) {
-    try {
-        console.log(`enbity`, entity)
-        const topic = `users/${entity.client_id}/device/${entity.entity_id}/data/${entity.datasource_config.pub_topic}`;
-        mqttClient.publish(topic, JSON.stringify(message), (err) => {
-          if (err) console.error(`Error publishing to ${topic}:`, err);
-          else console.log(`Published message to ${topic}`);
-        });
-      } catch (error) {
-        console.error(`publishMessage error for ${entity.entity_id}:`, error);
-      }
-}
-
-
-async function publishToTopic(entity, topic, message, qos = 0) {
   try {
-      console.log(`→ publicando en topic=${topic}`, message);
-      mqttClient.publish(topic, JSON.stringify(message), { qos }, err => {
-          if (err) console.error(`Error publishing to ${topic}:`, err);
-          else     console.log(`Published message to ${topic} with QoS ${qos}`);
-      });
+    console.log(`enbity`, entity);
+    const topic = `users/${entity.client_id}/device/${entity.entity_id}/data/${entity.datasource_config.pub_topic}`;
+    mqttClient.publish(topic, JSON.stringify(message), (err) => {
+      if (err) console.error(`Error publishing to ${topic}:`, err);
+      else console.log(`Published message to ${topic}`);
+    });
   } catch (error) {
-      console.error(`publishToTopic error for ${entity.entity_id}:`, error);
+    console.error(`publishMessage error for ${entity.entity_id}:`, error);
   }
 }
 
+async function publishToTopic(entity, topic, message, qos = 0) {
+  try {
+    console.log(`→ publicando en topic=${topic}`, message);
+    mqttClient.publish(topic, JSON.stringify(message), { qos }, (err) => {
+      if (err) console.error(`Error publishing to ${topic}:`, err);
+      else console.log(`Published message to ${topic} with QoS ${qos}`);
+    });
+  } catch (error) {
+    console.error(`publishToTopic error for ${entity.entity_id}:`, error);
+  }
+}
 
 //#endregion
 module.exports = { initialize, publishMessage, publishToTopic };
-
-
-
 
 /*
 subscription:

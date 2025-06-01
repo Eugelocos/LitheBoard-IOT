@@ -96,6 +96,7 @@ function DeviceList(props) {
         datasource_config: { ...editedConfig },
         rulechain_id: editedRulechainId,
       };
+      
       await axios.put(
         `${baseUrl}/api/data/entities/update`,
         updatedData
@@ -304,6 +305,19 @@ function DeviceList(props) {
                   setEditedConfig({
                     ...editedConfig,
                     pub_topic: e.target.value,
+                  })
+                }
+              />
+              <TextField
+                margin="dense"
+                label="Heartbeat Timeout"
+                variant="outlined"
+                fullWidth
+                value={editedConfig.heartbeat_timeout || ''}
+                onChange={(e) =>
+                  setEditedConfig({
+                    ...editedConfig,
+                    heartbeat_timeout: e.target.value,
                   })
                 }
               />

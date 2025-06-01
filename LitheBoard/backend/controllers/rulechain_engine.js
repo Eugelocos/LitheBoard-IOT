@@ -3,6 +3,8 @@ const { Engine } = require('json-rules-engine');
 const {publishMessage, publishToTopic} = require('./datasources/mqtt_handler')
 const historialModel = require('../models/historial_model')
 const {sendAlertEmail} = require('./mail_controller')
+const axios = require('axios');
+
 // Instancia única del engine.
 const engine = new Engine();
 

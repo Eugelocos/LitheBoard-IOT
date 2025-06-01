@@ -6,20 +6,18 @@ import DeviceList from "./Widget/dashboard_widget_list.jsx";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "../../../../dashboards_panel.css";
-import "../../../../app.css"
+import "../../../../app.css";
 import EditWidgetDrawer from "./Widget/WidgetForm/Edit/edit_widget_form.jsx";
 import axios from "axios";
 import {
-
   getDashboardWidgets,
   getHistorialEntity,
 } from "../../../database_data_functions.jsx";
 import mqtt from "mqtt";
-import socket from "../../../../socket.js"
+import socket from "../../../../socket.js";
 import dayjs from "dayjs";
 import config from "@config";
 import { Divider } from "@mui/material";
-
 
 function Dashboard(props) {
   const handleMouseOver = (e) => {
@@ -32,22 +30,25 @@ function Dashboard(props) {
     dashboard_name,
     dashboard_id,
     user,
-    dashboard
+    dashboard,
   } = props;
   const [devices_list, setDevicesList] = useState([]);
   const [edited_widget_type, setEditedWidgetType] = useState([]);
   const [edited_widget_id, setEditedWidgetId] = useState([]);
-  const [is_widget_editor_drawer_open, setIsWidgetEditorDrawerOpen] = useState(false);
+  const [is_widget_editor_drawer_open, setIsWidgetEditorDrawerOpen] =
+    useState(false);
 
   const ref_container = useRef(null);
   const sum_disp_ref = useRef(null);
 
-
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
-
   function saveWidgetEdition(edited_data) {
-    if (edited_data.widget_id && edited_data.widget_name && edited_data.entity_id) {
+    if (
+      edited_data.widget_id &&
+      edited_data.widget_name &&
+      edited_data.entity_id
+    ) {
       const updated_widget = {
         widget_id: edited_data.widget_id, // Asegúrate de tener el ID del widget a editar
         widget_name: edited_data.widget_name,
@@ -81,16 +82,18 @@ function Dashboard(props) {
         },
         client_id: edited_data.config_data.client_id,
       };
-  
 
       // Realizamos la solicitud para editar el widget
       return axios
-        .put(`${base_url}/api/data/widgets/update/${updated_widget.widget_id}`, updated_widget)
+        .put(
+          `${base_url}/api/data/widgets/update/${updated_widget.widget_id}`,
+          updated_widget
+        )
         .then((response) => {
           console.log("Widget actualizado:", response.data);
 
           // Opcional: Obtener nuevamente los widgets del dashboard
-          window.location.reload()
+          window.location.reload();
           return getDashboardWidgets(dashboard_id, user.client_id);
         })
         .then(({ devices, history }) => {
@@ -105,37 +108,75 @@ function Dashboard(props) {
       console.log("Por favor, proporciona un widget válido para editar.");
     }
   }
-  
+
   useEffect(() => {
-    socket.on("mqtt_message", (recievedData) => {
-      const { widget_id, data } = recievedData;
-      setDevicesList(prevDatos => {
-        const updated_datos = prevDatos.map(device => {
-          const new_hist_row = {
-            history_id : device.historial.historic_id+1,
-            enity_id:device.entity_id,
-            date: dayjs(Date.now()).format("DD/MM"),
-            data: data,
-            selcted_key:null
-          }
-          if (device.widget_id === widget_id) {  
-            return {
-              ...device,
-              historial: [...device.historial, new_hist_row]
-            };
-          }
-          return device;  
-        });
-        console.log("updated datprs : ", updated_datos)
-        return updated_datos;
-      });
+    socket.on("data_updated", async ({ entity_id }) => {
+      try {
+        const resp = await axios.get(
+          `${base_url}/api/data/historic/ei/get/${entity_id}`
+        );
+        const allHistory = resp.data;
+        if (!allHistory.length) return;
+
+        const lastEntry = allHistory[allHistory.length - 1];
+
+        // 2) Añadir SOLO ese último registro a la lista existente
+        setDevicesList((prev) =>
+          prev.map((device) =>
+            device.entity_id !== entity_id
+              ? device
+              : {
+                  ...device,
+                  historial: [...device.historial, lastEntry],
+                }
+          )
+        );
+      } catch (err) {
+        console.error("Error fetching historic data:", err);
+      }
     });
 
-
     return () => {
-      socket.off("mqtt_message");
+      socket.off("data_updated");
     };
-  }, []);
+  }, [setDevicesList]);
+
+  useEffect(() => {
+    const handleStateChange = ({ entity_id, status }) => {
+      console.log("[WS] entity_state_change received:", entity_id, status);
+      setDevicesList(prev => {
+        const updated = prev.map(device => {
+          if (device.entity_id !== entity_id) return device;
+          const oldStatus = device.config.datasource_config.status;
+          console.log(
+            `→ Updating status for device ${entity_id}:`,
+            oldStatus,
+            "→",
+            status
+          );
+          return {
+            ...device,
+            config: {
+              ...device.config,
+              datasource_config: {
+                ...device.config.datasource_config,
+                status
+              }
+            }
+          };
+        });
+        console.log("[State] devicesList after status update:", updated);
+        return updated;
+      });
+    };
+
+    console.log("[WS] Subscribing to entity_state_change");
+    socket.on("entity_state_change", handleStateChange);
+    return () => {
+      console.log("[WS] Unsubscribing from entity_state_change");
+      socket.off("entity_state_change", handleStateChange);
+    };
+  }, [setDevicesList]);
 
   useEffect(() => {
     const getDashboardWidgetsAsync = async () => {
@@ -154,7 +195,6 @@ function Dashboard(props) {
 
     getDashboardWidgetsAsync();
   }, [dashboard_id]);
-
 
   function showWidgetFormSelection() {
     if (ref_container.current) ref_container.current.style.display = "none";
@@ -189,70 +229,64 @@ function Dashboard(props) {
     setDevicesList([...devices_list]);
   }
 
-
-
-
-
-
   return (
     <div>
-<div
-  ref={ref_container}
-  className="contenedor w-full h-full min-w-fit min-h-full bg-white border border-gray-300 rounded-xl shadow-sm m-1/4 overflow-hidden"
-  id="contenedor"
->
-  <div className="flex items-center justify-between py-4 px-5 w-full bg-white mb-3">
-    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-      {dashboard_name}
-    </h2>
-    <button
-      onClick={() => showWidgetFormSelection(false)}
-      className="flex items-center justify-center w-10 h-10 transition-all duration-200 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-    >
-      <FontAwesomeIcon icon={faPlus} className="text-gray-700 text-xl" />
-    </button>
-  </div>
+      <div
+        ref={ref_container}
+        className="contenedor w-full h-full min-w-fit min-h-full bg-white border border-gray-300 rounded-xl shadow-sm m-1/4 overflow-hidden"
+        id="contenedor"
+      >
+        <div className="flex items-center justify-between py-4 px-5 w-full bg-white mb-3">
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+            {dashboard_name}
+          </h2>
+          <button
+            onClick={() => showWidgetFormSelection(false)}
+            className="flex items-center justify-center w-10 h-10 transition-all duration-200 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <FontAwesomeIcon icon={faPlus} className="text-gray-700 text-xl" />
+          </button>
+        </div>
 
-  <Divider className="h-px mt-4 mb-5 bg-gray-200" />
+        <Divider className="h-px mt-4 mb-5 bg-gray-200" />
 
-  <div
-    id="dispContainer"
-    className="flex flex-wrap gap-5 p-6 bg-gray-50 h-[calc(100vh-160px)] overflow-y-auto scrollbar-custom"
-  >
-    <style jsx>{`
-      .scrollbar-custom::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-      }
-      .scrollbar-custom::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 6px;
-        margin: 8px;
-      }
-      .scrollbar-custom::-webkit-scrollbar-thumb {
-        background: #b0b0b0;
-        border-radius: 6px;
-        border: 2px solid #f1f1f1;
-      }
-      .scrollbar-custom::-webkit-scrollbar-thumb:hover {
-        background: #909090;
-      }
-    `}</style>
+        <div
+          id="dispContainer"
+          className="flex flex-wrap gap-5 p-6 bg-gray-50 h-[calc(100vh-160px)] overflow-y-auto scrollbar-custom"
+        >
+          <style jsx>{`
+            .scrollbar-custom::-webkit-scrollbar {
+              width: 10px;
+              height: 10px;
+            }
+            .scrollbar-custom::-webkit-scrollbar-track {
+              background: #f1f1f1;
+              border-radius: 6px;
+              margin: 8px;
+            }
+            .scrollbar-custom::-webkit-scrollbar-thumb {
+              background: #b0b0b0;
+              border-radius: 6px;
+              border: 2px solid #f1f1f1;
+            }
+            .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+              background: #909090;
+            }
+          `}</style>
 
-    <DeviceList
-      devices_list={devices_list}
-      setDevicesList={setDevicesList}
-      handleMouseOver={handleMouseOver}
-      setDevice={setEntities}
-      toggleSwitchState={toggleSwitchState}
-      openWidgetEditor={setIsWidgetEditorDrawerOpen}
-      setEditedWidgetId={setEditedWidgetId}
-      setEditedWidgetType={setEditedWidgetType}
-    />
-    <Disps />
-  </div>
-</div>
-
+          <DeviceList
+            devices_list={devices_list}
+            setDevicesList={setDevicesList}
+            handleMouseOver={handleMouseOver}
+            setDevice={setEntities}
+            toggleSwitchState={toggleSwitchState}
+            openWidgetEditor={setIsWidgetEditorDrawerOpen}
+            setEditedWidgetId={setEditedWidgetId}
+            setEditedWidgetType={setEditedWidgetType}
+          />
+          <Disps />
+        </div>
+      </div>
 
       <div ref={sum_disp_ref} id="sumDisp" style={{ display: "none" }}>
         <div className="flex flex-wrap justify-center">
@@ -268,7 +302,15 @@ function Dashboard(props) {
         </div>
       </div>
 
-      <EditWidgetDrawer devices_list={devices_list} widget_id={edited_widget_id} widget_type={edited_widget_type} entities={entities} onSave={saveWidgetEdition} is_widget_editor_drawer_open={is_widget_editor_drawer_open} setIsWidgetEditorDrawerOpen={setIsWidgetEditorDrawerOpen}></EditWidgetDrawer>
+      <EditWidgetDrawer
+        devices_list={devices_list}
+        widget_id={edited_widget_id}
+        widget_type={edited_widget_type}
+        entities={entities}
+        onSave={saveWidgetEdition}
+        is_widget_editor_drawer_open={is_widget_editor_drawer_open}
+        setIsWidgetEditorDrawerOpen={setIsWidgetEditorDrawerOpen}
+      ></EditWidgetDrawer>
     </div>
   );
 }

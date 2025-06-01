@@ -8,16 +8,7 @@ const db = require("../config/db");
  * `[results]`.
  */
 async function getEntities() {
-    const query = `
-        SELECT 
-            entity_id,
-            client_id,
-            disp_name,
-            datasource_type,
-            datasource_config,
-            rulechain_id
-        FROM entities
-    `;
+    const query = `SELECT * FROM entities`;
 
     try {
         const [rows] = await db.promise().query(query);

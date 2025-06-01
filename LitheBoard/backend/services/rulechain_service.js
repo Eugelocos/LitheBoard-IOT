@@ -57,7 +57,7 @@ async function generateRulesEngineJson(nodes, edges) {
     } else if (node.data.label === "Agregador") {
       currentRule.actions.push({
         type: "aggregate",
-        aggregation: node.data?.config?.aggregation || "",
+        increment: node.data?.config?.agregator || "",
       });
       console.log("Agregada acción de agregador");
     } else if (node.data.label === "Notificación") {

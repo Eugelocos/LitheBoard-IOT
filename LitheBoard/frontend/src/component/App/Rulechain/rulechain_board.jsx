@@ -42,29 +42,22 @@ function RuleChainEditor({ rulechain, onSave, onCancel }) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
 
-  useEffect(() => {
-    if (rulechain?.rulechain) {
-      setNodes(rulechain.rulechain.nodes || []);
-      setEdges(rulechain.rulechain.edges || []);
-    }
-  }, [rulechain, setNodes, setEdges]);
-
+  // Callback para actualizar config de un nodo
   const updateNodeConfig = useCallback(
-    (nodeId, config) => {
-      console.log("handleNodeConfigChange>", nodeId, config);
-
-      setNodes(nds =>
-        nds.map(n => {
+    (nodeId, partialConfig) => {
+      setNodes((nds) =>
+        nds.map((n) => {
           if (n.id !== nodeId) return n;
           return {
             ...n,
             data: {
               ...n.data,
               config: {
-                ...n.data.config,     // <— mantenemos lo que ya había
-                ...config      // <— y añadimos/actualizamos solo lo nuevo
-              }
-            }
+                ...n.data.config,
+                ...partialConfig,
+              },
+              onConfigChange: updateNodeConfig,
+            },
           };
         })
       );
@@ -72,6 +65,23 @@ function RuleChainEditor({ rulechain, onSave, onCancel }) {
     [setNodes]
   );
 
+  // Al cargar desde la BD, reinyecta onConfigChange en cada nodo
+  useEffect(() => {
+    if (rulechain?.rulechain) {
+      const loaded = rulechain.rulechain;
+      const nodesWithCallback = (loaded.nodes || []).map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          onConfigChange: updateNodeConfig,
+        },
+      }));
+      setNodes(nodesWithCallback);
+      setEdges(loaded.edges || []);
+    }
+  }, [rulechain, setNodes, setEdges, updateNodeConfig]);
+
+  // Conexión de nodos
   const onConnect = useCallback(
     (params) => {
       const newEdge = {
@@ -85,6 +95,7 @@ function RuleChainEditor({ rulechain, onSave, onCancel }) {
     [setEdges]
   );
 
+  // Drag & drop de nuevos nodos
   const onDrop = useCallback(
     (e) => {
       e.preventDefault();
@@ -113,24 +124,23 @@ function RuleChainEditor({ rulechain, onSave, onCancel }) {
     [reactFlowInstance, updateNodeConfig, setNodes]
   );
 
-  const onInit = useCallback((inst) => {
-    setReactFlowInstance(inst);
-    inst.fitView();
+  const onInit = useCallback((instance) => {
+    setReactFlowInstance(instance);
+    instance.fitView();
   }, []);
 
   const handleSave = useCallback(async () => {
-    console.log("gurdando . . . ");
     onSave({ ...rulechain, rulechain: { nodes, edges } });
   }, [nodes, edges, onSave, rulechain]);
 
   return (
-    <div className="rulechain-list-panel h-full overflow-hidden overflow-x-auto  bg-white border border-gray-300 rounded-[12px] p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1) flex">
+    <div className="rulechain-list-panel h-full overflow-hidden overflow-x-auto bg-white border border-gray-300 rounded-[12px] p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1)] flex">
       <NodePalette
         onSave={handleSave}
         rulechain={rulechain}
         onCancel={onCancel}
       />
-      <Box flex={1} style={{ position: "relative" }}>
+      <Box flex={1} sx={{ position: 'relative' }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}

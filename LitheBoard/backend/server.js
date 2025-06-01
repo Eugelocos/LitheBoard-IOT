@@ -1,5 +1,4 @@
-
-const express = require("express");
+const express = require("express")
 const http = require("http");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -9,7 +8,7 @@ const db = require("./config/db");
 const mqtt_routes = require('./routes/mqtt_routes');
 require('dotenv').config();
 const configureSocket = require("./sockets/socket");
-const mqtt_socket = require("./sockets/mqtt_socket");
+const ws_helper = require("./sockets/ws_helper");
 const otp_routes = require('./routes/otp_routes');
 const entity_routes = require('./routes/entity_routes')
 const widget_routes = require('./routes/widget_routes')
@@ -87,10 +86,10 @@ app.use("/api", rulechain_routes);
 //#region HTPP_WebSocket
 /* The above code is creating a server using the `http` module in Node.js and configuring a socket
 connection using the `configureSocket` function. It then initializes a MQTT socket using the
-`mqtt_socket.init` function with the configured socket connection. */
+`ws_helper.init` function with the configured socket connection. */
 const server = http.createServer(app);
 const io = configureSocket(server);
-mqtt_socket.init(io);
+ws_helper.init(io);
 server.listen(process.env.BACKEND_WS_PORT, () => {
   console.log(`Websocket server runing in ${process.env.WEB_URL}:${process.env.BACKEND_WS_PORT}`);
 });

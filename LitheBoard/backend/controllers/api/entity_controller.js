@@ -1,7 +1,8 @@
 const db = require("../../config/db");
 const {generateToken} = require('../../services/otp_service')
 const { getDatasourceController } = require('../datasource_initializer');
-
+const eventBus = require('../../services/event_bus');
+const entityModel = require('../../models/entity_model');
 /**
  * Namespace to separate APIs controllers
  * @namespace controllers.api.entity
@@ -197,54 +198,59 @@ const getEntityById = async (req, res) => {
  * @memberof controllers.api.entity
  */
 const updateEntity = async (req, res) => {
-  const { entity_id, disp_name, datasource_config, rulechain_id} = req.body;
+  const { entity_id, disp_name, datasource_config, rulechain_id } = req.body;
   if (!entity_id || !disp_name || !datasource_config) {
     return res.status(400).json({ message: "Missing required data" });
   }
 
   const query = `
-      UPDATE entities
-      SET disp_name = ?, datasource_config = ?, rulechain_id = ?
-      WHERE entity_id = ?
-    `;
-  const values = [disp_name, JSON.stringify(datasource_config), rulechain_id,entity_id];
+    UPDATE entities
+    SET disp_name = ?, datasource_config = ?, rulechain_id = ?
+    WHERE entity_id = ?
+  `;
+  const values = [
+    disp_name,
+    JSON.stringify(datasource_config),
+    rulechain_id,
+    entity_id
+  ];
 
   try {
     const [result] = await db.promise().query(query, values);
-
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Entity not found" });
     }
 
-    const datasourceController = await getDatasourceController();
-
-    // Actualizar la entidad en el DatasourceController
-    const updatedEntity = {
-      entity_id,
-      disp_name,
-      datasource_config: JSON.stringify(datasource_config),
-      rulechain_id
-    };
-
-    // Obtén el tipo de datasource desde la entidad existente en el DatasourceController
-    const existingEntity = datasourceController.entityMap.get(entity_id);
-    if (!existingEntity) {
-      return res.status(404).json({ message: "Entity not found in controller" });
+    // Recupera la entidad actualizada completa desde la BD
+    const [rows] = await db.promise().query(
+      `SELECT * FROM entities WHERE entity_id = ?`,
+      [entity_id]
+    );
+    const updatedEntity = rows[0];
+    let cfg = updatedEntity.datasource_config;
+    try {
+      // si es string válido lo parsea, si no lanza y lo capturamos
+      if (typeof cfg === 'string') cfg = JSON.parse(cfg);
+    } catch (e) {
+      console.warn('datasource_config no era JSON-string, pero ya es objeto', e);
     }
+    updatedEntity.datasource_config = cfg;
 
-    updatedEntity.datasource_type = existingEntity.datasource_type;
+    // Actualiza el controller en memoria
+    const datasourceController = await getDatasourceController();
+    // Opción A: llamar directamente
+    await datasourceController.addOrUpdateEntity(updatedEntity);
 
-    datasourceController.addOrUpdateEntity(updatedEntity);
+    // Opción B: emitir evento (si usas EventBus)
+    // eventBus.emit('entity.updated', updatedEntity);
 
-
-    res.json({ message: "Entity successfully upated" });
+    return res.json({ message: "Entity successfully updated", entity: updatedEntity });
   } catch (err) {
     console.error("Error updating entity data:", err);
-    res
-      .status(500)
-      .json({ message: "Error updating entity data:", error: err });
+    return res.status(500).json({ message: "Error updating entity data", error: err.message });
   }
 };
+
 
 
 /**

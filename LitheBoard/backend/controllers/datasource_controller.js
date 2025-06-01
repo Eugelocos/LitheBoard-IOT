@@ -6,6 +6,8 @@ const historialModel = require("../models/historial_model");
 const alarmModel = require("../models/alarm_model");
 const ruleEngine = require('./rulechain_engine');
 const rulechainModel = require('../models/rulechain_model')
+const eventBus = require('./../services/event_bus');
+const wsHelper = require('../sockets/ws_helper')
 
 class DatasourceController extends EventEmitter {
   constructor(entities) {
@@ -41,20 +43,14 @@ class DatasourceController extends EventEmitter {
 
     // Escuchar eventos generados por los handlers
     this.on("datasourceEvent", this.handleDatasourceEvent.bind(this));
+    
+    eventBus.on('entity.updated', this.onEntityUpdated.bind(this));
   }
 
   async handleDatasourceEvent({ entity, data, source }) {
     try {
-      console.log(`Event from ${source} for entity ${entity.entity_id}:`);
 
-      /*const ruleChainConfig = typeof entity.datasource_config.rulechain === 'string'
-      ? JSON.parse(entity.datasource_config.rulechain)
-      : entity.datasource_config.rulechain;
-      if(ruleChainConfig){
-        console.log("rulechain:", ruleChainConfig);
-        console.log("rulechain key:", ruleChainConfig.selected_key);
-        console.log("rulechain rules:", ruleChainConfig.rules);
-      }*/
+
       console.log("-------<>---------")
       const rulechain = await rulechainModel.getRulechainById(entity.rulechain_id);
       const rulechainCompiled = typeof rulechain.compiled === 'string'
@@ -74,15 +70,10 @@ class DatasourceController extends EventEmitter {
         );
       }
 
-      // Guardar el historial
-      /*await historialModel.saveMessage(
-        entity.entity_id,
-        entity.client_id,
-        null,
-        data
-      );*/
+      wsHelper.emitDataMessage({
+        entity_id: entity.entity_id
+      });
 
-      // Procesar alarmas
       const alarms = await alarmModel.getAlarmsByDevice(
         entity.entity_id,
         entity.client_id
@@ -104,6 +95,8 @@ class DatasourceController extends EventEmitter {
       } else {
         console.log("No alarms found");
       }
+
+
     } catch (error) {
       console.error(
         `Error handling event for entity ${entity.entity_id}:`,
@@ -136,6 +129,11 @@ class DatasourceController extends EventEmitter {
       console.error("Error checking alarm condition:", error);
       return false;
     }
+  }
+
+  async onEntityUpdated(entity) {
+    console.log(`Entity updated event: ${entity.entity_id}`);
+    await this.addOrUpdateEntity(entity);
   }
 
   async addOrUpdateEntity(entity) {

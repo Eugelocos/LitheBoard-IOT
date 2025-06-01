@@ -17,6 +17,7 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user, rulechai
   const disp_name_ref = useRef();
   const sub_topic_ref = useRef();
   const pub_topic_ref = useRef();
+  const heartbeat_timeout_ref = useRef();
 
   const api_url_ref = useRef();
   const api_method_ref = useRef();
@@ -41,6 +42,7 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user, rulechai
       datasourceConfig = {
         sub_topic: sub_topic_ref.current.value,
         pub_topic: pub_topic_ref.current.value,
+        heartbeat_timeout: heartbeat_timeout_ref.current.value
       };
     } else if (datasourceType === "API") {
       datasourceConfig = {
@@ -73,6 +75,7 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user, rulechai
           if (datasourceType === "MQTT") {
             sub_topic_ref.current.value = "";
             pub_topic_ref.current.value = "";
+            heartbeat_timeout_ref.current.value = "";
           } else if (datasourceType === "API") {
             api_url_ref.current.value = "";
             api_method_ref.current.value = "";
@@ -164,6 +167,15 @@ function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user, rulechai
                   label="Publish Topic"
                   variant="outlined"
                   inputRef={pub_topic_ref}
+                  fullWidth
+                />
+              </FormControl>
+
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Heartbeat Timeout"
+                  variant="outlined"
+                  inputRef={heartbeat_timeout_ref}
                   fullWidth
                 />
               </FormControl>
