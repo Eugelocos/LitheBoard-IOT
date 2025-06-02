@@ -1,14 +1,38 @@
-const express = require("express");
+// backend/routes/notification_routes.js
+const express = require('express');
 const router = express.Router();
+const notificationController = require('../controllers/api/notification_controller');
+const { protect, restrictTo } = require('../middlewares/auth');
+const { validateSchema } = require('../middlewares/validate');
 const {
-    getNotificationsByClientId,
-    instertNotification,
-    markNotificationAsRead
-} = require("../controllers/api/notification_controller");
+  getNotificationsSchema,
+  createNotificationSchema,
+  markNotificationAsReadSchema,
+} = require('../schemas/notificationSchemas');
 
-router.get("/notifications/get/:client_id", getNotificationsByClientId);
-router.post("/notifications/insert", instertNotification);
-router.post("/notifications/markAsRead/:notification_id",markNotificationAsRead);
+// Obtener notificaciones por client_id
+router.get(
+  '/:client_id',
+  protect,
+  validateSchema(getNotificationsSchema, 'params'),
+  notificationController.getNotificationsByClientId
+);
 
+// Crear notificación
+router.post(
+  '/',
+  protect,
+  restrictTo('admin', 'manager'),
+  validateSchema(createNotificationSchema),
+  notificationController.insertNotification
+);
 
-module.exports=router;
+// Marcar notificación como leída
+router.patch(
+  '/:notification_id/read',
+  protect,
+  validateSchema(markNotificationAsReadSchema, 'params'),
+  notificationController.markNotificationAsRead
+);
+
+module.exports = router;

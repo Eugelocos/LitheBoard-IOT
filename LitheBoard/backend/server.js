@@ -1,3 +1,4 @@
+const config = require("./config/index.js")
 const express = require("express")
 const http = require("http");
 const bodyParser = require("body-parser");
@@ -21,6 +22,9 @@ const rulechain_routes = require('./routes/rulechain_routes')
 
 const DatasourceController = require('./controllers/datasource_controller');
 const entityModel = require('./models/entity_model');
+
+
+const errorHandler = require('./middlewares/errorHandler');
 /* The above code snippet is written in JavaScript and it is setting up a server using the
 Express framework. */
 
@@ -59,20 +63,23 @@ app.use(
 Express framework. It is using the `app.use` method to mount middleware functions at specified
 paths. */
 app.use("/api", mqtt_routes);
-app.use("/api", otp_routes);
-app.use("/api", entity_routes);
-app.use("/api", widget_routes);
-app.use("/api", historic_routes);
-app.use("/api", client_routes);
-app.use("/api", dashboard_routes);
-app.use("/api", alarm_routes);
-app.use("/api", rulechain_routes);
+app.use('/api/otp', require('./routes/otp_routes'));
+app.use('/api/enitity', require('./routes/entity_routes'));
+app.use('/api/widget', require('./routes/widget_routes'));
+app.use('/api/historic', require('./routes/historic_routes'));
+app.use('/api/clients', require('./routes/client_routes'));
+app.use('/api/dashboard', require('./routes/dashboard_routes'));
+app.use('/api/alarm', require('./routes/alarm_routes'));
+app.use('/api/notification', require('./routes/notification_routes'));
+app.use('/api/rulechain', require('./routes/rulechain_routes'));
 //#endregion
 
 
 
 
-
+app.all('*', (req, res) => {
+  res.status(404).json({ error: `Ruta ${req.originalUrl} no encontrada` });
+});
 
 
 
@@ -100,7 +107,7 @@ server.listen(process.env.BACKEND_WS_PORT, () => {
 
 
 
-
+/*
 //#region Notifications
 app.get("/api/notifications/get/:client_id", async (req, res) => {
   const { client_id } = req.params;
@@ -210,14 +217,14 @@ app.post("/api/notifications/markAsRead/:notification_id", async (req, res) => {
 });
 
 //#endregion
+*/
 
 
 
 
 
 
-
-
+app.use(errorHandler);
 
 app.listen(port,'0.0.0.0',() => {
   console.log(`Server running on port ${port}`);

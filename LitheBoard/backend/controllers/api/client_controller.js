@@ -1,347 +1,227 @@
-const db = require("../../config/db");
-const bcrypt = require("bcryptjs");
+// backend/controllers/api/client_controller.js
+
+const bcrypt = require('bcryptjs');
+const AppError = require('../../utils/appError');
+const ClientService = require('../../services/client_service');
+const { createSendToken } = require('../../middlewares/auth');
 
 /**
- * The function `login` handles user authentication by comparing the provided password with the hashed
- * password stored in the database for a given email.
- * @param {object} req - The `req` parameter in your code represents the request object, which contains
- * information about the HTTP request that the client has made. This object includes properties such as
- * `req.body` (containing the parsed request body), `req.params` (containing route parameters),
- * `req.query` (cont
- * @param {object} res - The `res` parameter in the `login` function is the response object that will be used to
- * send a response back to the client making the request. It is typically used to send HTTP responses
- * with status codes, headers, and data back to the client. In the provided code snippet, `res
- * @returns The login function returns either a success response with the user information in JSON
- * format if the email and password are valid, or a 400 status with a message "Email or password not
- * found" if the email or password do not match. In case of any server error during the process, it
- * returns a 500 status with a message "Server error, try later" along with the error details.
+ * POST /api/clients/login
+ * Autentica a un cliente: verifica correo y contraseña, y responde con JWT.
  */
-const login = async (req, res) => {
-  const { email, password } = req.body;
-
+exports.login = async (req, res, next) => {
   try {
-    const query = "SELECT * FROM clients WHERE email = ?";
-    const [results] = await db.promise().query(query, [email]);
+    const { email, password } = req.body;
 
-    if (results.length === 0) {
-      return res.status(400).json({ message: "Email or password not found" });
+    // Validación mínima (idealmente con Joi antes en la ruta)
+    if (!email || !password) {
+      return next(new AppError('Email y contraseña son requeridos', 400));
     }
 
-    const user = results[0];
-    console.log("Password hash from DB:", user.password);
+    // Buscar cliente por email
+    const client = await ClientService.findByEmail(email);
+    if (!client) {
+      return next(new AppError('Email o contraseña inválidos', 401));
+    }
 
-    // Verificar si la contraseña es válida
-    const passwordToCompare = password.trim(); // Limpiar espacios antes de comparar
-    const isPasswordValid = await bcrypt.compareSync(passwordToCompare, user.password);
-
-    console.log(
-      "Contraseña introducida:",
-      passwordToCompare,
-      "Contraseña almacenada:",
-      user.password,
-      "Validación:",
-      isPasswordValid
-    );
-
+    // Verificar contraseña
+    const isPasswordValid = await bcrypt.compare(password.trim(), client.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: "Email or password not found" });
+      return next(new AppError('Email o contraseña inválidos', 401));
     }
 
-    req.session.client = {
-      id: user.client_id,
-      name: user.name,
-      email: user.email,
-      access_level_id: user.access_level_id,
-      admin_id: user.admin_id,
-    };
+    // Remover el password del objeto antes de enviar (por seguridad)
+    client.password = undefined;
 
-    res.status(200).json({
-      user: req.session.client,
-    });
+    // Generar y enviar token
+    return createSendToken(client, 200, res);
   } catch (err) {
-    console.error("Login process error:", err);
-    res.status(500).json({
-      message: "Server error, try later",
-      error: err.message || err,
-    });
+    return next(new AppError(err.message, 500));
   }
 };
 
 /**
- * The function `getUserSession` checks if a user is authenticated and returns the user session data or
- * an error message accordingly.
- * @param {object} req - The `req` parameter typically represents the request object in a Node.js application.
- * It contains information about the HTTP request that is being made, such as the request headers,
- * parameters, body, and more. In this context, `req.session.client` is likely referring to a client
- * session stored in the 
- * @param {object} res - The `res` parameter in the `getUserSession` function is the response object that will
- * be used to send a response back to the client making the request. It is typically an instance of the
- * response class in a Node.js application using Express framework.
- * @returns The `getUserSession` function is returning a JSON response based on the presence of
- * `req.session.client`. If `req.session.client` exists, it returns a status of 200 with the client
- * session data in JSON format. If `req.session.client` does not exist, it returns a status of 401 with
- * a message indicating that the user is not authenticated and needs to log in to continue.
+ * GET /api/clients/session
+ * Devuelve datos básicos del cliente autenticado (usando JWT).
  */
-const getUserSession = (req, res) => {
-  if (req.session.client) {
-    return res.status(200).json(req.session.client);
-  } else {
-    return res.status(401).json({
-      message: "User not authenticated. Please log in to continue.",
-    });
-  }
-};
-/**
- * The function 'logout' handles users log outs of the plattform, destroying the session
- * @param {object} req - The `req` parameter typically represents the request object in a Node.js application.
- * It contains information about the HTTP request that is being made, such as the request headers,
- * parameters, body, and more.
- * @param {object} res - The `res` parameter in the `getUserSession` function is the response object that will
- * be used to send a response back to the client making the request. It is typically an instance of the
- * response class in a Node.js application using Express framework.
- */
-const logout = (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error("Error destroying the session:", err);
-      return res.status(500).send("Error logging out. Please try again later.");
-    }
-    res.clearCookie("connect.sid");
-    res.status(200).send("Session successfully closed.");
-  });
-};
-
-/**
- * The function `register` is an asynchronous function that handles user registration, including
- * validation, checking for admin privileges, and inserting the user into the database.
- * @param req - The `req` parameter in the `register` function is an object that represents the HTTP
- * request. It contains information about the request made to the server, such as the request body
- * (`req.body`) which typically includes data sent by the client in the request payload. In this case,
- * the `req
- * @param res - The `res` parameter in the `register` function is the response object that will be sent
- * back to the client making the request. It is used to send the HTTP response with the appropriate
- * status code and data back to the client.
- * @returns If the `name`, `email`, or `password` fields are missing in the request body, a 400 status
- * with a message "Please, fill all the fields" will be returned. If there is an error during the
- * registration process, a 500 status with a message "Server error" and the error message will be
- * returned. If the registration is successful, a 201 status with a
- */
-const register = async (req, res) => {
-  const { name, email, password, adminEmail, access_level } = req.body;
-
-  console.log("Email recibido:", email.trim());
-  console.log("Contraseña recibida:", password.trim());
-
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: "Please, fill all the fields" });
-  }
-
+exports.getUserSession = async (req, res, next) => {
   try {
+    // El middleware `protect` ya habrá agregado req.user si el JWT es válido
+    const user = req.user;
+    if (!user) {
+      return next(new AppError('Usuario no autenticado', 401));
+    }
+    return res.status(200).json({ id: user._id, email: user.email, name: user.name, role: user.role });
+  } catch (err) {
+    return next(new AppError(err.message, 500));
+  }
+};
+
+/**
+ * POST /api/clients/logout
+ * (Opcional en JWT: puede invalidar token en cliente; aquí solo devolvemos 204)
+ */
+exports.logout = async (_req, res) => {
+  // En un sistema JWT puro, basta con que el cliente borre el token.
+  return res.status(204).send();
+};
+
+/**
+ * POST /api/clients/register
+ * Registra un cliente nuevo, hash de contraseña, y opcionamente lo asocia a un admin.
+ */
+exports.register = async (req, res, next) => {
+  try {
+    const { name, email, password, adminEmail, access_level } = req.body;
+
+    // Validación mínima (idealmente con Joi antes en la ruta)
+    if (!name || !email || !password || !access_level) {
+      return next(new AppError('Todos los campos (name, email, password, access_level) son requeridos', 400));
+    }
+
+    // Verificar que no exista otro cliente con ese email
+    const existing = await ClientService.findByEmail(email);
+    if (existing) {
+      return next(new AppError('Ya existe un cliente con ese correo', 400));
+    }
+
+    // Determinar admin_id si corresponde
     let admin_id = null;
-
-    if (access_level === "2" && adminEmail) {
-      const [adminResult] = await db
-        .promise()
-        .query("SELECT client_id FROM clients WHERE email = ?", [adminEmail]);
-
-      if (adminResult.length === 0) {
-        return res.status(404).json({ message: "Admin not found" });
+    if (access_level === '2' && adminEmail) {
+      const admin = await ClientService.findByEmail(adminEmail);
+      if (!admin) {
+        return next(new AppError('Admin no encontrado con ese email', 404));
       }
-
-      admin_id = adminResult[0].client_id;
+      admin_id = admin._id;
     }
 
-    await insertClient(name, email, password, access_level, admin_id);
+    // Crear el cliente (en el service se hace el hash de password)
+    const newClient = await ClientService.createClient({ name, email, password, access_level, admin_id });
 
-    res.status(201).json({ message: "User successfully registered." });
+    // Si quieres, puedes directamente loguear al usuario tras registrarse:
+    // createSendToken(newClient, 201, res);
+    return res.status(201).json({
+      status: 'success',
+      data: {
+        client: {
+          id: newClient._id,
+          name: newClient.name,
+          email: newClient.email,
+          access_level: newClient.access_level,
+          admin_id: newClient.admin_id || null
+        }
+      }
+    });
   } catch (err) {
-    console.error("Registration error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    return next(new AppError(err.message, 500));
   }
 };
-
-
-async function insertClient(name, email, password, access_level, admin_id) {
-  const access_level_id = access_level;
-
-  if (!access_level_id) {
-    throw new Error("Access level not valid");
-  }
-
-  try {
-    console.log("password", password);
-
-
-    const [result] = await db
-      .promise()
-      .query(
-        "INSERT INTO clients (name, email, password, access_level_id, admin_id) VALUES (?, ?, ?, ?, ?)",
-        [name, email, password, access_level_id, admin_id]
-      );
-
-    const newClientId = result.insertId;
-    console.log("result", admin_id);
-
-    if (admin_id) {
-      await db
-        .promise()
-        .query(
-          "INSERT INTO client_admins (client_id, admin_id) VALUES (?, ?)",
-          [newClientId, admin_id]
-        );
-    }
-  } catch (err) {
-    console.error("Registration error:", err);
-    throw new Error("Access level not valid");
-  }
-};
-
-const updateClient = async (req, res) => {
-  const { name, email, id } = req.body;
-  if (!id || !name || !email) {
-    return res.status(400).json({ message: "All the fields are required" });
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ message: "Email not valid" });
-  }
-
-  try {
-    const query = "UPDATE clients SET name = ?, email = ? WHERE client_id = ?";
-    const [result] = await db.promise().query(query, [name, email, id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    res.status(200).json({ message: "User successfully updated." });
-  } catch (err) {
-    console.error("Updating user error.", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
-const getAsociatedClientsAdminsByAdminId = async (req, res) => {
-  const { admin_id } = req.params;
-  if (!admin_id) {
-    return res.status(400).json({ message: "Admin Id is required" });
-  }
-
-  try {
-    const query = "SELECT client_id FROM client_admins WHERE admin_id = ?";
-    const [results] = await db.promise().query(query, [admin_id]);
-    if (results.length === 0) {
-      return res.status(404).json({
-        message: "No clients associated with this admin were found.",
-      });
-    }
-    const clientIds = results.map((result) => result.client_id);
-    res.status(200).json(clientIds);
-  } catch (err) {
-    console.error("Error retrieving associated clients.", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
-const getClientsByIds = async (req, res) => {
-  const { clients_ids } = req.params;
-
-  if (!clients_ids) {
-    return res
-      .status(400)
-      .json({ message: "A list of client IDs is required." });
-  }
-
-  const idsArray = clients_ids.split(",").map((id) => parseInt(id, 10));
-
-  if (idsArray.some((id) => isNaN(id))) {
-    return res
-      .status(400)
-      .json({ message: "All IDs must be valid numeric values." });
-  }
-
-  const query = "SELECT * FROM clients WHERE client_id IN (?)";
-
-  try {
-    const [results] = await db.promise().query(query, [idsArray]);
-
-    if (results.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No clients found with those IDs." });
-    }
-
-    res.status(200).json(results);
-  } catch (err) {
-    console.error("Error retrieving clients.", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
 
 /**
- * The function `deleteClient` is an asynchronous function in JavaScript that deletes a client from a
- * database after checking for dependencies and handling errors.
- * @param req - The `req` parameter in the `deleteClient` function stands for the request object. It
- * contains information about the HTTP request that triggered the function, such as request headers,
- * parameters, body, and other details. In this case, `req.params` is used to access parameters passed
- * in the URL
- * @param res - The `res` parameter in the `deleteClient` function is the response object that will be
- * used to send a response back to the client making the request. It is typically used to set the
- * status code of the response (e.g., 200 for success, 404 for not found,
- * @returns The `deleteClient` function is checking if a client exists in the database based on the
- * `client_id` provided in the request parameters. If the client is not found, it returns a 404 status
- * with a message "Client not found".
+ * PUT /api/clients
+ * Actualiza nombre y email de un cliente existente.
  */
-const deleteClient = async (req, res) => {
-  const { client_id } = req.params;
-
+exports.updateClient = async (req, res, next) => {
   try {
-    // Check if client exists
-    const [clientCheck] = await db.promise().query(
-      'SELECT * FROM clients WHERE client_id = ?',
-      [client_id]
-    );
-
-    if (clientCheck.length === 0) {
-      return res.status(404).json({ message: "Client not found" });
+    const { id, name, email } = req.body;
+    if (!id || !name || !email) {
+      return next(new AppError('Los campos id, name y email son obligatorios', 400));
     }
 
-    // Check for dependencies (adjust according to your relations)
-    const [dependencies] = await db.promise().query(
-      'SELECT * FROM dashboards WHERE additional_client_ids LIKE ?',
-      [`%${client_id}%`]
-    );
-
-    if (dependencies.length > 0) {
-      return res.status(400).json({ 
-        message: "Cannot delete client with associated dashboards",
-        dashboards: dependencies.map(d => d.dashboard_id)
-      });
+    // Verificar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return next(new AppError('Email no válido', 400));
     }
 
-    // Proceed with deletion
-    await db.promise().query(
-      'DELETE FROM clients WHERE client_id = ?',
-      [client_id]
-    );
+    const updated = await ClientService.updateClient({ id, name, email });
+    if (!updated) {
+      return next(new AppError('Cliente no encontrado', 404));
+    }
 
-    res.status(200).json({ message: "Client deleted successfully" });
-
+    return res.status(200).json({ status: 'success', message: 'Cliente actualizado correctamente.' });
   } catch (err) {
-    console.error("Delete error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    return next(new AppError(err.message, 500));
   }
 };
 
-module.exports = {
-  login,
-  getClientsByIds,
-  getUserSession,
-  logout,
-  register,
-  updateClient,
-  getAsociatedClientsAdminsByAdminId,
-  deleteClient
+/**
+ * GET /api/clients/admins/:admin_id/clients
+ * Obtiene todos los client_ids asociados a un admin dado.
+ */
+exports.getAsociatedClientsAdminsByAdminId = async (req, res, next) => {
+  try {
+    const { admin_id } = req.params;
+    if (!admin_id) {
+      return next(new AppError('El parámetro admin_id es requerido', 400));
+    }
+
+    const clientIds = await ClientService.getAssociatedClientIds(admin_id);
+    if (!clientIds || clientIds.length === 0) {
+      return next(new AppError('No se encontraron clientes asociados a este admin', 404));
+    }
+
+    return res.status(200).json(clientIds);
+  } catch (err) {
+    return next(new AppError(err.message, 500));
+  }
+};
+
+/**
+ * GET /api/clients/:clients_ids
+ * Obtiene detalles de clientes cuyos IDs vienen en coma-separados en params.
+ */
+exports.getClientsByIds = async (req, res, next) => {
+  try {
+    const { clients_ids } = req.params;
+    if (!clients_ids) {
+      return next(new AppError('Debe proporcionar una lista de client IDs', 400));
+    }
+
+    // Convertir "1,2,3" en [1, 2, 3]
+    const idsArray = clients_ids.split(',').map((id) => parseInt(id, 10));
+    if (idsArray.some((id) => isNaN(id))) {
+      return next(new AppError('Todos los IDs deben ser valores numéricos válidos', 400));
+    }
+
+    const clients = await ClientService.getClientsByIds(idsArray);
+    if (!clients || clients.length === 0) {
+      return next(new AppError('No se encontraron clientes con esos IDs', 404));
+    }
+
+    return res.status(200).json(clients);
+  } catch (err) {
+    return next(new AppError(err.message, 500));
+  }
+};
+
+/**
+ * DELETE /api/clients/:client_id
+ * Elimina un cliente si no tiene dependencias (dashboards asociados).
+ */
+exports.deleteClient = async (req, res, next) => {
+  try {
+    const { client_id } = req.params;
+    if (!client_id) {
+      return next(new AppError('El parámetro client_id es requerido', 400));
+    }
+
+    // Verificar si existe y no tiene dependencias
+    const deleted = await ClientService.deleteClient(client_id);
+    if (deleted === 'not_found') {
+      return next(new AppError('Cliente no encontrado', 404));
+    }
+    if (deleted === 'has_dependencies') {
+      return next(
+        new AppError(
+          'No se puede eliminar el cliente porque tiene dashboards asociados',
+          400
+        )
+      );
+    }
+
+    return res.status(200).json({ status: 'success', message: 'Cliente eliminado correctamente' });
+  } catch (err) {
+    return next(new AppError(err.message, 500));
+  }
 };

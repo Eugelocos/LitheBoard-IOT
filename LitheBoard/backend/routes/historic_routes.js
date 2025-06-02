@@ -1,29 +1,38 @@
-const express = require("express");
+// backend/routes/historic_routes.js
+const express = require('express');
 const router = express.Router();
+const historicController = require('../controllers/api/historic_controller');
+const { protect, restrictTo } = require('../middlewares/auth');
+const { validateSchema } = require('../middlewares/validate');
 const {
-  getHistoricsByEntityId,
-  instertHistoric,
-  getHistoricByClientId,
-} = require("../controllers/api/historic_controller");
+  getHistoricsByEntitySchema,
+  getHistoricByClientSchema,
+  createHistoricSchema,
+} = require('../schemas/historicSchemas');
 
-/*This line of code is setting up a GET route for accessing historical data 
- by entity ID. When a GET request is made to "/data/historic/ei/get/:entity_id" 
- endpoint, the `getHistoricsByEntityId` function from the historic_controller 
- will be called to handle the request and provide the corresponding historical 
- data for the specified entity ID.*/
-router.get("/data/historic/ei/get/:entity_id", getHistoricsByEntityId);
+// Obtener historiales por entity_id
+router.get(
+  '/entity/:entity_id',
+  protect,
+  validateSchema(getHistoricsByEntitySchema, 'params'),
+  historicController.getHistoricsByEntityId
+);
 
-/*The line `router.post("/data/historic/insert", instertHistoric);` is setting 
- up a POST route for inserting historical data. When a POST request is made to 
- the "/data/historic/insert" endpoint, the `instertHistoric` function from the 
- historic_controller will be called to handle the request and insert the provided 
- historical data into the system.*/
-router.post("/data/historic/insert", instertHistoric);
+// Obtener historiales por client_id
+router.get(
+  '/client/:client_id',
+  protect,
+  validateSchema(getHistoricByClientSchema, 'params'),
+  historicController.getHistoricByClientId
+);
 
-/**This line of code is setting up a GET route for accessing historical data by client ID.
- When a GET request is made to "/data/historic/ci/get/:client_id" endpoint, the 
- `getHistoricByClientId` function from the historic_controller will be called to 
- handle the request and provide the corresponding historical data for the specified client ID.*/
-router.get("/data/historic/ci/get/:client_id", getHistoricByClientId);
+// Insertar histórico
+router.post(
+  '/',
+  protect,
+  restrictTo('admin', 'manager'),
+  validateSchema(createHistoricSchema),
+  historicController.insertHistoric
+);
 
 module.exports = router;

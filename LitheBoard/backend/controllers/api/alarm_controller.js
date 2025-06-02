@@ -1,116 +1,82 @@
-const db = require("../../config/db");
+// backend/controllers/api/alarm_controller.js
 
+const AlarmService = require('../../services/alarm_service');
+const AppError = require('../../utils/appError');
 
 /**
- * Retrieves alarms for a specific client from the database and sends the results in the response.
- * 
- * This function handles an incoming HTTP request to fetch alarms associated with a given client ID.
- * It performs a SQL query to join the alarms and entities tables and returns the relevant data.
- * If no alarms are found, it responds with a 404 status and a message indicating that no alarms were found.
- * If an error occurs during the database query, it responds with a 500 status and the error message.
- * 
- * @param {Object} req - The request object, which contains parameters for the API call.
- * @param {Object} res - The response object, used to send back the desired HTTP response.
- * @returns {Promise<void>} A Promise that resolves when the response has been sent.
- * 
- * @throws {Error} In case of a database query error, a 500 status will be sent back with the error message.
+ * GET /api/alarm/:client_id
+ * Recupera todas las alarmas asociadas a un client_id.
  */
-
-const getAlarmsByClientId = async (req, res) => {
-  const { client_id } = req.params;
-
-  const query = `
-      SELECT 
-        a.alarm_id, 
-        a.entity_id, 
-        a.valor, 
-        a.client_id, 
-        a.selected_key,
-        a.alarm_condition,
-        e.disp_name,
-        e.datasource_type,
-        e.datasource_config
-      FROM 
-        alarms a
-      JOIN 
-        entities e ON a.entity_id = e.entity_id
-      WHERE 
-        a.client_id = ?;
-    `;
-
+exports.getAlarmsByClientId = async (req, res, next) => {
   try {
-    const [results] = await db.promise().query(query, [client_id]);
-    if (results.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No se encontraron alarmas para este cliente." });
+    const { client_id } = req.params;
+
+    // Si se integra Joi, aquí se podría validar client_id (p. ej. Joi.number().integer().required())
+    // Ejemplo (suponiendo que ya tienes un middleware validateSchema en la ruta):
+    // validateSchema(getAlarmsSchema)
+
+    // Llamamos al service para obtener las alarmas
+    const alarms = await AlarmService.fetchAlarmsByClientId(client_id);
+
+    if (!alarms || alarms.length === 0) {
+      // Lanzamos un AppError con código 404; el middleware lo capturará
+      return next(new AppError('No se encontraron alarmas para este cliente.', 404));
     }
 
-    // Aquí podrías manejar la lógica basada en el tipo de datasource si necesitas hacer algo más específico
-    res.status(200).json(results);
+    // Si todo ok, enviamos la lista de alarmas
+    return res.status(200).json(alarms);
   } catch (err) {
-    console.error("Error fetching alarms:", err);
-    res
-      .status(500)
-      .json({ message: "Error en el servidor", error: err.message });
+    // Enviamos el error al handler global
+    return next(new AppError(err.message, 500));
   }
 };
 
-
-const insterAlarm = async (req, res) => {
-  const { entity_id, valor, client_id, selected_key, alarm_condition } =
-    req.body;
-
-  // Validación básica de entrada
-  if (
-    !entity_id ||
-    valor == null ||
-    !client_id ||
-    !selected_key ||
-    !alarm_condition
-  ) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Todos los campos son obligatorios: entity_id, valor, client_id, selected_key, alarm_condition.",
-      });
-  }
-
-  const query = `
-      INSERT INTO alarms (entity_id, valor, client_id, selected_key, alarm_condition) 
-      VALUES (?, ?, ?, ?, ?)
-    `;
-
+/**
+ * POST /api/alarm
+ * Inserta una nueva alarma en la base de datos.
+ */
+exports.insertAlarm = async (req, res, next) => {
   try {
-    const [result] = await db
-      .promise()
-      .query(query, [
-        entity_id,
-        valor,
-        client_id,
-        selected_key,
-        alarm_condition,
-      ]);
+    const { entity_id, valor, client_id, selected_key, alarm_condition } = req.body;
 
-    res.status(201).json({
-      message: "Alarma insertada exitosamente",
-      alarm_id: result.insertId,
+    // Aquí debería correr un middleware de validación Joi antes de llegar al controller,
+    // p. ej. validateSchema(createAlarmSchema). Para este ejemplo, hacemos validación mínima:
+    if (
+      entity_id == null ||
+      valor == null ||
+      client_id == null ||
+      !selected_key ||
+      !alarm_condition
+    ) {
+      // En lugar de retornar directamente, lanzamos un AppError que el handler global procesará
+      return next(
+        new AppError(
+          'Todos los campos son obligatorios: entity_id, valor, client_id, selected_key, alarm_condition.',
+          400
+        )
+      );
+    }
+
+    // Delegamos la inserción al service
+    const newAlarm = await AlarmService.createAlarm({
       entity_id,
       valor,
       client_id,
       selected_key,
       alarm_condition,
     });
+
+    // El servicio puede devolver el registro recién creado (incluido alarm_id)
+    return res.status(201).json({
+      message: 'Alarma insertada exitosamente',
+      alarm: newAlarm,
+    });
   } catch (err) {
-    console.error("Error inserting alarm data:", err);
-    res
-      .status(500)
-      .json({ message: "Error en el servidor", error: err.message });
+    // Si el service lanza un AppError con un código adecuado, lo propaga
+    if (err instanceof AppError) {
+      return next(err);
+    }
+    // En caso de error inesperado, convertimos a AppError 500
+    return next(new AppError(err.message, 500));
   }
 };
-
-module.exports={
-    getAlarmsByClientId,
-    insterAlarm
-}

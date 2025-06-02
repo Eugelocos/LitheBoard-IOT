@@ -1,8 +1,7 @@
+/*
 const mysql = require('mysql2');
 require('dotenv').config();
 
-/* This code snippet is creating a MySQL connection pool using the `mysql2` library in a Node.js
-application. Here's a breakdown of what each part of the code is doing: */
 
 // Create a MySQL connection pool with configuration settings
 const db = mysql.createPool({
@@ -18,3 +17,28 @@ const db = mysql.createPool({
 
 // Export the database connection pool for use in other modules
 module.exports = db;
+
+*/
+
+// backend/config/db.js
+const mysql = require('mysql2/promise');
+const {
+  dbHost,
+  dbPort,
+  dbUser,
+  dbPassword,
+  dbName
+} = require('./index');
+
+const pool = mysql.createPool({
+  host: dbHost,            
+  port: dbPort,          
+  user: dbUser,            
+  password: dbPassword,    
+  database: dbName,
+  waitForConnections: true, 
+  connectionLimit: 10,    
+  queueLimit: 0         
+});
+
+module.exports = pool;

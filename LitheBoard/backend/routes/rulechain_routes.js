@@ -1,45 +1,58 @@
-const express = require("express");
+// backend/routes/rulechain_routes.js
+const express = require('express');
 const router = express.Router();
+const rulechainController = require('../controllers/api/rulechain_controller');
+const { protect, restrictTo } = require('../middlewares/auth');
+const { validateSchema } = require('../middlewares/validate');
 const {
-  getRulechains,
-  getRulechainById,
-  insertRulechain,
-  updateRulechain,
-  deleteRulechain,
-} = require("../controllers/api/rulechain_controller");
+  getRulechainsSchema,
+  getRulechainByIdSchema,
+  createRulechainSchema,
+  updateRulechainSchema,
+  deleteRulechainSchema,
+} = require('../schemas/rulechainSchemas');
 
-/**
- * @namespace controllers.api.rulechain
- */
+// Obtener rulechains por client_id
+router.get(
+  '/',
+  protect,
+  validateSchema(getRulechainsSchema, 'query'),
+  rulechainController.getRulechains
+);
 
-/**
- * GET all rulechains for a user
- * Endpoint: /data/rulechains/get
- */
-router.get("/data/rulechains/get", getRulechains);
+// Obtener un rulechain por ID
+router.get(
+  '/:rulechain_id',
+  protect,
+  validateSchema(getRulechainByIdSchema, 'params'),
+  rulechainController.getRulechainById
+);
 
-/**
- * GET a single rulechain by ID
- * Endpoint: /data/rulechains/get/byId/:rulechain_id
- */
-router.get("/data/rulechains/get/byId/:rulechain_id", getRulechainById);
+// Crear nuevo rulechain
+router.post(
+  '/',
+  protect,
+  restrictTo('admin', 'manager'),
+  validateSchema(createRulechainSchema),
+  rulechainController.insertRulechain
+);
 
-/**
- * POST a new rulechain
- * Endpoint: /data/rulechains/insert
- */
-router.post("/data/rulechains/insert", insertRulechain);
+// Actualizar rulechain
+router.put(
+  '/',
+  protect,
+  restrictTo('admin', 'manager'),
+  validateSchema(updateRulechainSchema),
+  rulechainController.updateRulechain
+);
 
-/**
- * PUT update an existing rulechain
- * Endpoint: /data/rulechains/update
- */
-router.put("/data/rulechains/update", updateRulechain);
-
-/**
- * DELETE a rulechain by ID
- * Endpoint: /data/rulechains/delete/:rulechain_id
- */
-router.delete("/data/rulechains/delete/:rulechain_id", deleteRulechain);
+// Eliminar rulechain
+router.delete(
+  '/:rulechain_id',
+  protect,
+  restrictTo('admin'),
+  validateSchema(deleteRulechainSchema, 'params'),
+  rulechainController.deleteRulechain
+);
 
 module.exports = router;

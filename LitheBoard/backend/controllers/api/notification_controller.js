@@ -1,115 +1,71 @@
+// backend/controllers/api/notification_controller.js
 
-const db = require("../../config/db");
+const AppError = require('../../utils/appError');
+const NotificationService = require('../../services/notification_service');
 
-const getNotificationsByClientId = async (req, res) => {
-  const { client_id } = req.params;
-
-  // Validación del parámetro `client_id`
-  if (!client_id) {
-    return res
-      .status(400)
-      .json({ message: "El parámetro client_id es obligatorio." });
-  }
-
-  const query = "SELECT * FROM notifications WHERE client_id = ?";
-
+/**
+ * GET /api/notification/:client_id
+ * Recupera todas las notificaciones asociadas a un client_id.
+ */
+exports.getNotificationsByClientId = async (req, res, next) => {
   try {
-    // Ejecutar la consulta con `async/await`
-    const [results] = await db.promise().query(query, [client_id]);
+    const { client_id } = req.params;
+    // Se asume validateSchema(getNotificationsSchema, 'params') antes de este controller
 
-    // Comprobar si no hay notificaciones
-    if (results.length === 0) {
-      return res.status(404).json({
-        message: "No se encontraron notificaciones para este cliente.",
-      });
+    const notifications = await NotificationService.fetchByClientId(client_id);
+    if (!notifications.length) {
+      return next(new AppError('No se encontraron notificaciones para este cliente.', 404));
     }
 
-    // Devolver las notificaciones
-    res.status(200).json(results);
-  } catch (err) {
-    console.error("Error fetching notifications:", err);
-    res.status(500).json({
-      message: "Error en el servidor al obtener notificaciones.",
-      error: err.message,
+    return res.status(200).json({
+      status: 'success',
+      results: notifications.length,
+      data: { notifications },
     });
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    return next(new AppError(err.message, 500));
   }
 };
 
-const instertNotification = async (req, res) => {
-  const { alarm_id, client_id, date, data } = req.body;
-
-  // Validar los datos de entrada
-  if (!alarm_id || !client_id || !date || !data) {
-    return res.status(400).json({
-      message:
-        "Todos los campos (alarm_id, client_id, date, data) son obligatorios.",
-    });
-  }
-
-  const query = `
-      INSERT INTO notifications (alarm_id, client_id, date, data) 
-      VALUES (?, ?, ?, ?)
-    `;
-  const values = [alarm_id, client_id, date, data];
-
+/**
+ * POST /api/notification
+ * Inserta una nueva notificación en la tabla `notifications`.
+ */
+exports.insertNotification = async (req, res, next) => {
   try {
-    // Ejecutar la consulta con async/await
-    const [result] = await db.promise().query(query, values);
+    const { alarm_id, client_id, date, data } = req.body;
+    // Se asume validateSchema(createNotificationSchema) antes de este controller
 
-    // Responder con el ID de la notificación recién creada
-    res.status(201).json({
-      notification_id: result.insertId,
-      alarm_id,
-      client_id,
-      date,
-      data,
+    const newNotification = await NotificationService.createNotification({ alarm_id, client_id, date, data });
+
+    return res.status(201).json({
+      status: 'success',
+      data: { notification: newNotification },
     });
   } catch (err) {
-    console.error("Error inserting notification data:", err);
-    res.status(500).json({
-      message: "Error en el servidor al insertar notificación.",
-      error: err.message,
-    });
+    if (err instanceof AppError) return next(err);
+    return next(new AppError(err.message, 500));
   }
 };
 
- const markNotificationAsRead= async (req, res) => {
-  const { notification_id } = req.params;
-
-  // Verifica que notification_id esté presente
-  if (!notification_id) {
-    return res.status(400).json({
-      message: "El ID de la notificación es obligatorio.",
-    });
-  }
-
-  const query = "UPDATE notifications SET visto = 1 WHERE notification_id = ?";
-
+/**
+ * PATCH /api/notification/:notification_id/read
+ * Marca una notificación como leída (visto = 1).
+ */
+exports.markNotificationAsRead = async (req, res, next) => {
   try {
-    // Ejecutar la consulta con async/await
-    const [result] = await db.promise().query(query, [notification_id]);
+    const { notification_id } = req.params;
+    // Se asume validateSchema(markNotificationAsReadSchema, 'params') antes de este controller
 
-    // Verificar si alguna fila fue afectada
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        message: "Notificación no encontrada.",
-      });
-    }
+    await NotificationService.markAsRead(notification_id);
 
-    res.status(200).json({
-      message: "Notificación marcada como leída.",
+    return res.status(200).json({
+      status: 'success',
+      message: 'Notificación marcada como leída.',
     });
   } catch (err) {
-    console.error("Error marcando la notificación como leída:", err);
-    res.status(500).json({
-      message: "Error en el servidor al marcar la notificación como leída.",
-      error: err.message,
-    });
+    if (err instanceof AppError) return next(err);
+    return next(new AppError(err.message, 500));
   }
-}
-
-module.exports={
-    getNotificationsByClientId,
-    instertNotification,
-    markNotificationAsRead
-}
+};

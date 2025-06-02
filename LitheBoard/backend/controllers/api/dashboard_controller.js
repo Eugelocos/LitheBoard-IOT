@@ -1,220 +1,134 @@
-const db = require("../../config/db");
+// backend/controllers/api/dashboard_controller.js
 
-const instertDashboard = async (req, res) => {
-  const { name, description, client_id, additional_client_ids = [] } = req.body;
+const AppError = require('../../utils/appError');
+const DashboardService = require('../../services/dashboard_service');
 
-  if (!name || !description || !client_id) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Por favor, complete todos los campos requeridos (name, description, client_id)",
-      });
-  }
-
-  if (!Array.isArray(additional_client_ids)) {
-    return res
-      .status(400)
-      .json({ message: "additional_client_ids debe ser un arreglo" });
-  }
-
-  const query =
-    "INSERT INTO dashboards (name, description, client_id, additional_client_ids) VALUES (?, ?, ?, ?)";
-
+/**
+ * POST /api/dashboard
+ * Inserta un nuevo dashboard en la BD.
+ */
+exports.insertDashboard = async (req, res, next) => {
   try {
-    const [result] = await db
-      .promise()
-      .query(query, [
-        name,
-        description,
-        client_id,
-        JSON.stringify(additional_client_ids),
-      ]);
+    const { name, description, client_id, additional_client_ids = [] } = req.body;
 
-    const newDashboard = {
-      dashboard_id: result.insertId,
-      name,
-      description,
+    // Asumimos que validateSchema(createDashboardSchema) ya corrió antes de este controller
+
+    const newDashboard = await DashboardService.createDashboard({
+      name: name.trim(),
+      description: description.trim(),
       client_id,
       additional_client_ids,
-    };
-
-    res.status(201).json(newDashboard);
-  } catch (err) {
-    console.error("Error inserting dashboard:", err);
-    return res
-      .status(500)
-      .json({ message: "Error en el servidor", error: err.message });
-  }
-}
-
-const getDahboardsByClientId = async (req, res) => {
-  const { client_id } = req.params;
-
-  if (!client_id) {
-    return res.status(400).json({ message: "Se requiere un client_id válido" });
-  }
-
-  const query = `
-      SELECT * FROM dashboards
-      WHERE client_id = ?
-      OR JSON_CONTAINS(additional_client_ids, CAST(? AS JSON), '$')
-    `;
-
-  try {
-    const [results] = await db.promise().query(query, [client_id, client_id]);
-
-    if (results.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No se encontraron dashboards para este cliente" });
-    }
-
-    res.json(results);
-  } catch (err) {
-    console.error("Error executing query:", err);
-    return res
-      .status(500)
-      .json({ message: "Error en el servidor", error: err.message });
-  }
-}
-
-const updateDashboard = async (req, res) => {
-  const {
-    dashboard_id,
-    name,
-    description,
-    additional_client_ids = [],
-  } = req.body;
-
-  if (!dashboard_id || !name || !description) {
-    return res.status(400).json({ message: "Faltan parámetros necesarios" });
-  }
-
-  const query = `
-      UPDATE dashboards
-      SET name = ?, description = ?, additional_client_ids = ?
-      WHERE dashboard_id = ?
-    `;
-
-  try {
-
-    const [result] = await db
-      .promise()
-      .query(query, [
-        name,
-        description,
-        JSON.stringify(additional_client_ids),
-        dashboard_id,
-      ]);
-
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Dashboard no encontrado" });
-    }
-
-    res.status(200).json({ message: "Dashboard actualizado correctamente" });
-  } catch (err) {
-    console.error("Error updating dashboard:", err);
-    return res
-      .status(500)
-      .json({ message: "Error en el servidor", error: err.message });
-  }
-}
-
-const deleteDahboard = async (req, res) => {
-  const { dashboard_id } = req.params;
-
-  const deleteWidgetsQuery = "DELETE FROM widgets WHERE dashboard_id = ?";
-  const deleteDashboardQuery = "DELETE FROM dashboards WHERE dashboard_id = ?";
-
-  try {
-
-    const [widgetsResult] = await db
-      .promise()
-      .query(deleteWidgetsQuery, [dashboard_id]);
-
-    const [dashboardResult] = await db
-      .promise()
-      .query(deleteDashboardQuery, [dashboard_id]);
-
-    if (dashboardResult.affectedRows === 0) {
-      return res.status(404).json({ message: "Dashboard no encontrado" });
-    }
-
-    res
-      .status(200)
-      .json({ message: "Dashboard y widgets eliminados correctamente" });
-  } catch (err) {
-    console.error("Error deleting dashboard or widgets:", err);
-    return res.status(500).json({
-      message: "Error en el servidor al eliminar dashboard y/o widgets",
-      error: err.message,
     });
-  }
-}
 
-const assignDashboardToClient = async (req, res) => {
-  const { clientId, dashboardId } = req.body;
-
-  if (!clientId || !dashboardId) {
-    console.error("Error con cliente", clientId, "o con dahboard", dashboardId);
-  }
-  try {
-    const [dashboardResults] = await db
-      .promise()
-      .query(
-        "SELECT additional_client_ids FROM dashboards WHERE dashboard_id = ?",
-        [dashboardId]
-      );
-
-    if (dashboardResults.length === 0) {
-      return res.status(404).json({ message: "Dashboard no encontrado" });
-    }
-
-    const dashboard = dashboardResults[0];
-    let associatedClients = [];
-
-    try {
-      associatedClients = dashboard.additional_client_ids || "[]";
-    } catch (parseError) {
-      console.error("Error parsing JSON:", parseError);
-      return res.status(500).json({
-        message: "Error en el servidor al procesar los datos",
-        error: parseError,
-      });
-    }
-
-    if (!associatedClients.includes(clientId)) {
-      associatedClients.push(clientId);
-
-      await db
-        .promise()
-        .query(
-          "UPDATE dashboards SET additional_client_ids = ? WHERE dashboard_id = ?",
-          [JSON.stringify(associatedClients), dashboardId]
-        );
-
-      return res
-        .status(200)
-        .json({ message: "Dashboard assigned successfully" });
-    } else {
-      return res
-        .status(200)
-        .json({ message: "Client is already assigned to this dashboard" });
-    }
+    return res.status(201).json({
+      status: 'success',
+      data: { dashboard: newDashboard },
+    });
   } catch (err) {
-    console.error("Error processing dashboard assignment:", err);
-    return res
-      .status(500)
-      .json({ message: "Error en el servidor", error: err.message });
+    if (err instanceof AppError) return next(err);
+    return next(new AppError(err.message, 500));
   }
-}
+};
 
-module.exports={
-  instertDashboard,
-  getDahboardsByClientId,
-  updateDashboard,
-  deleteDahboard,
-  assignDashboardToClient
-}
+/**
+ * GET /api/dashboard/:client_id
+ * Recupera todos los dashboards donde client_id es dueño o está en additional_client_ids.
+ */
+exports.getDashboardsByClientId = async (req, res, next) => {
+  try {
+    const { client_id } = req.params;
+    // Asumimos validateSchema(getDashboardsSchema, 'params') antes de este controller
+
+    const dashboards = await DashboardService.fetchDashboardsByClientId(client_id);
+    if (!dashboards || dashboards.length === 0) {
+      return next(new AppError('No se encontraron dashboards para este cliente', 404));
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      results: dashboards.length,
+      data: { dashboards },
+    });
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    return next(new AppError(err.message, 500));
+  }
+};
+
+/**
+ * PUT /api/dashboard
+ * Actualiza nombre, descripción y additional_client_ids de un dashboard existente.
+ */
+exports.updateDashboard = async (req, res, next) => {
+  try {
+    const { dashboard_id, name, description, additional_client_ids = [] } = req.body;
+    // Asumimos validateSchema(updateDashboardSchema) antes de este controller
+
+    const updated = await DashboardService.updateDashboard({
+      dashboard_id,
+      name: name.trim(),
+      description: description.trim(),
+      additional_client_ids,
+    });
+
+    if (!updated) {
+      return next(new AppError('Dashboard no encontrado', 404));
+    }
+
+    return res.status(200).json({ status: 'success', message: 'Dashboard actualizado correctamente' });
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    return next(new AppError(err.message, 500));
+  }
+};
+
+/**
+ * DELETE /api/dashboard/:dashboard_id
+ * Elimina un dashboard y sus widgets asociados.
+ */
+exports.deleteDashboard = async (req, res, next) => {
+  try {
+    const { dashboard_id } = req.params;
+    // Asumimos validateSchema(deleteDashboardSchema, 'params') antes de este controller
+
+    const result = await DashboardService.deleteDashboard(dashboard_id);
+    if (result === 'not_found') {
+      return next(new AppError('Dashboard no encontrado', 404));
+    }
+
+    return res.status(200).json({ status: 'success', message: 'Dashboard y widgets eliminados correctamente' });
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    return next(new AppError(err.message, 500));
+  }
+};
+
+/**
+ * POST /api/dashboard/assign
+ * Asigna un cliente a additional_client_ids de un dashboard.
+ */
+exports.assignDashboardToClient = async (req, res, next) => {
+  try {
+    const { clientId, dashboardId } = req.body;
+    // Asumimos validateSchema(assignDashboardSchema) antes de este controller
+
+    const assignResult = await DashboardService.assignDashboardToClient(clientId, dashboardId);
+
+    if (assignResult === 'not_found') {
+      return next(new AppError('Dashboard no encontrado', 404));
+    }
+    if (assignResult === 'already_assigned') {
+      return res
+        .status(200)
+        .json({ status: 'success', message: 'Client ya estaba asignado a este dashboard' });
+    }
+
+    // assignResult contiene el dashboard actualizado
+    return res
+      .status(200)
+      .json({ status: 'success', message: 'Dashboard asignado correctamente', data: { dashboard: assignResult } });
+  } catch (err) {
+    if (err instanceof AppError) return next(err);
+    return next(new AppError(err.message, 500));
+  }
+};
