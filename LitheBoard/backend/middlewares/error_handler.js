@@ -1,4 +1,4 @@
-// backend/middlewares/errorHandler.js
+// backend/middlewares/error_handler.js
 module.exports = (err, req, res, next) => {
   console.error(err);
   const status = err.statusCode || 500;

@@ -1,6 +1,6 @@
 // backend/controllers/api/notification_controller.js
 
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 const NotificationService = require('../../services/notification_service');
 
 /**

@@ -1,6 +1,6 @@
 // backend/controllers/api/widget_controller.js
 
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 const WidgetService = require('../../services/dbServices/widget_service');
 
 /**

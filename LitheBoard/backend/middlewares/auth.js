@@ -1,14 +1,15 @@
 // backend/middlewares/auth.js
 
 const jwt = require('jsonwebtoken');
-const AppError = require('../utils/appError');
-const { jwtSecret, jwtExpiresIn } = require('../config'); 
-const User = require('../models/user_model'); // Ajusta la ruta según tengas definido tu modelo de usuario
+const AppError = require('../utils/app_error');
+const { jwtSecret, jwtExpiresIn } = require('../config');
+const clientService = require('../services/client_service'); // <-- usamos client_service en lugar de user_model
+const bcrypt = require('bcryptjs'); // Solo si lo necesitas para comparar contraseñas en otro punto
 
 /**
  * Middleware para proteger rutas: verifica que exista un token JWT válido.
  * - Se espera que el token venga en el header "Authorization: Bearer <token>".
- * - Si el token es válido, recupera al usuario de la BD y lo inyecta en req.user.
+ * - Si el token es válido, recupera al cliente de la BD y lo inyecta en req.user.
  */
 exports.protect = async (req, res, next) => {
   try {
@@ -34,29 +35,37 @@ exports.protect = async (req, res, next) => {
       return next(new AppError('Token inválido o expirado. Inicia sesión de nuevo.', 401));
     }
 
-    // 3) Comprobar que el usuario aún existe en la base de datos
-    //    (por ejemplo, pudo haber sido eliminado)
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return next(new AppError('El usuario del token ya no existe.', 401));
+    // 3) Comprobar que el cliente aún existe en la base de datos
+    //    (podría haber sido eliminado)
+    const clientRecord = await clientService.findById(decoded.id);
+    if (!clientRecord) {
+      return next(new AppError('El cliente del token ya no existe.', 401));
     }
 
-    // 4) Verificar si el usuario cambió su contraseña después de que el token fue emitido
-    //    (Opcional: si guardas en User un campo passwordChangedAt)
-    if (user.passwordChangedAt) {
-      const passwordChangedTimestamp = parseInt(user.passwordChangedAt.getTime() / 1000, 10);
+    // 4) Verificar si el cliente cambió su contraseña después de que el token fue emitido
+    if (clientRecord.password_changed_at) {
+      const passwordChangedTimestamp = parseInt(
+        new Date(clientRecord.password_changed_at).getTime() / 1000,
+        10
+      );
       if (decoded.iat < passwordChangedTimestamp) {
         return next(
           new AppError(
-            'El usuario cambió la contraseña recientemente. Inicia sesión de nuevo.',
+            'El cliente cambió la contraseña recientemente. Inicia sesión de nuevo.',
             401
           )
         );
       }
     }
 
-    // 5) Si todo ok, adjuntamos el usuario al request para que lo use el controlador
-    req.user = user;
+    // 5) Si todo ok, adjuntamos los datos mínimos del cliente en req.user
+    req.user = {
+      id: clientRecord.id,
+      name: clientRecord.name,
+      email: clientRecord.email,
+      role: clientRecord.role,
+      admin_id: clientRecord.admin_id,
+    };
     next();
   } catch (err) {
     return next(new AppError('No se pudo verificar la autenticación.', 500));
@@ -66,7 +75,7 @@ exports.protect = async (req, res, next) => {
 /**
  * Middleware para restringir accesos según roles.
  * - rolesPermitidos: array de strings, p. ej. ['admin', 'manager']
- * Solo los usuarios cuyo user.role esté en rolesPermitidos podrán continuar.
+ * Solo los clientes cuyo req.user.role esté en rolesPermitidos podrán continuar.
  */
 exports.restrictTo = (...rolesPermitidos) => {
   return (req, res, next) => {
@@ -74,7 +83,8 @@ exports.restrictTo = (...rolesPermitidos) => {
       // Si no se aplicó protect primero, lanzamos error
       return next(new AppError('Debes estar autenticado para ejecutar esta acción.', 401));
     }
-    if (!rolesPermitidos.includes(req.user.role)) {
+    if (!rolesPermitidos.includes(String(req.user.role))) {
+      // Asegúrate de comparar con String si tu "role" es integer en la BD
       return next(new AppError('No tienes permisos para realizar esta acción.', 403));
     }
     next();
@@ -82,32 +92,33 @@ exports.restrictTo = (...rolesPermitidos) => {
 };
 
 /**
- * Middleware para generar y enviar un JWT al usuario tras login o signup.
- * Puede usarse en controllers de auth (por ejemplo, signupController, loginController).
- * - user: objeto de usuario (modelo) proveniente de la BD.
- * - statusCode: código HTTP de respuesta (p. ej. 200 o 201).
+ * Función para generar y enviar un JWT al cliente tras login o signup.
+ * - client: objeto con { id, email, role }.
+ * - statusCode: código HTTP de respuesta (200, 201, etc.).
  * - res: objeto response de Express.
  */
-exports.createSendToken = (user, statusCode, res) => {
-  // 1) Crear el payload mínimo (aquí, solo incluimos user.id y role; puedes agregar otros campos si lo necesitas)
-  const payload = { id: user._id, role: user.role };
+exports.createSendToken = (client, statusCode, res) => {
+  // 1) Crear el payload mínimo (id y role)
+  const role = client.admin_id!=null ? "client" : "admin";
+
+  const payload = { id: client.id, role: role };
 
   // 2) Firmar el token con el secreto y establecer expiración
   const token = jwt.sign(payload, jwtSecret, {
     expiresIn: jwtExpiresIn,
   });
 
-  // 3) Para mayor seguridad, podrías enviar el token como HTTP-only cookie.
-  //    Aquí lo devolvemos en JSON, pero puedes ajustar a tu preferencia.
+  
+  // 3) Enviar JSON con token y datos mínimos del cliente
   res.status(statusCode).json({
     status: 'success',
     token,
     data: {
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        // No es buena práctica enviar la contraseña ni campos sensibles
+      client: {
+        id: client.client_id,
+        email: client.email,
+        role: role,
+        name: client.name
       },
     },
   });

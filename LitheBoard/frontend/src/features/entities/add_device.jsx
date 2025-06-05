@@ -10,8 +10,8 @@ import {
 } from "@mui/material";
 import { IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { setDevice } from "../../database_data_functions";
-import StatusBadge from "../../status_badge";
+import { setDevice } from "../../component/database_data_functions";
+import StatusBadge from "../../component/status_badge";
 
 function AddDevice({ onAddDevice, showDeviceList, setDevicesList, user, rulechains}) {
   const disp_name_ref = useRef();

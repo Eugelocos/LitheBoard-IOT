@@ -23,7 +23,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import AddDevice from './add_device';
 import config from '@config';
-import StatusBadge from '../../status_badge';
+import StatusBadge from '../../component/status_badge';
 
 function DeviceList(props) {
   const {

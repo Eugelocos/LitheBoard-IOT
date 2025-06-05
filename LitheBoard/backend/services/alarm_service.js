@@ -1,7 +1,7 @@
 // backend/services/alarm_service.js
 
 const db = require('../config/db');
-const AppError = require('../utils/appError');
+const AppError = require('../utils/app_error');
 
 /**
  * Obtiene todas las alarmas de un client_id determinado,

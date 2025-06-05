@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
-import Dashboard from "./Dashboards/Dashboard/dashboard";
+import Dashboard from "../dashboards/Dashboard/dashboard";
 import "../../dashboards_panel.css";
-import DeviceList from "./Entities/device_list";
-import DashboardListPanel from "./Dashboards/PanelDashboards/dashboard_list_panel";
-import { getDevice } from "../database_data_functions";
+import DeviceList from "../entities/device_list";
+import DashboardListPanel from "../dashboards/PanelDashboards/dashboard_list_panel";
+import { getDevice } from "../../component/database_data_functions";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import TopMenu from "./Menu/TopMenu/top_menu";
-import ProfileSettingsPanel from "./Profile/profile_settings_panel ";
-import LateralMenu from "./Menu/LateralMenu/lateral_menu";
+import TopMenu from "../menu/TopMenu/top_menu";
+import ProfileSettingsPanel from "../profile/profile_settings_panel ";
+import LateralMenu from "../menu/LateralMenu/lateral_menu";
 import { Drawer, Button, Toolbar } from "@mui/material";
-import AlarmList from "./Alarms/alarm_list";
-import ClientList from "./LinkedClients/client_list";
+import AlarmList from "../alarms/alarm_list";
+import ClientList from "../linkedClients/client_list";
 import config from "@config";
 
-import RulechainList from "./Rulechain/rulechain_list"
+import RulechainList from "../rulechain/rulechain_list.jsx"
 
 const entityTest = {
   entity_id: 234,
@@ -48,30 +48,57 @@ function DashboardPanel() {
   const [loading, setLoading] = useState(true);
 
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
-  useEffect(() => {
+ useEffect(() => {
+    // 1) Intentamos leer el objeto 'user' almacenado en localStorage
+    const storedUserJSON = localStorage.getItem("user");
+    if (!storedUserJSON) {
+      // Si no hay usuario en localStorage, redirigimos a login
+      navigate("/login");
+      return;
+    }
+
+    let parsedUser;
+    try {
+      parsedUser = JSON.parse(storedUserJSON);
+    } catch (err) {
+      console.error("Error parseando usuario de localStorage:", err);
+      navigate("/login");
+      return;
+    }
+
+    // Guardamos en el estado local
+    setUser(parsedUser);
+
+    // 2) Con el user ya disponible, obtenemos devices y dashboards
     const fetchData = async () => {
       try {
-        const userResponse = await axios.get(`${base_url}/api/user`, {
-          withCredentials: true,
-        });
-        console.log("user repsone", userResponse);
-        setUser(userResponse.data);
-
-        const devicesResponse = await getDevice(
-          setEntities,
-          userResponse.data.id
-        );
-        const dashboardsResponse = await axios.get(
-          `${base_url}/api/data/dashboards/${userResponse.data.id}`
-        );
-
-        setDashboards(dashboardsResponse.data);
+        // a) Llamamos a getDevice (que internamente usa tu propia función HTTP)
+        //    Suponiendo que getDevice retorna un objeto { data: [...] }
+        const devicesResponse = await getDevice(parsedUser.id);
+        // Si getDevice devuelve directamente el array, usa: setEntities(devicesResponse)
         setEntities(devicesResponse.data);
+
+        // b) Hacemos la petición para traer los dashboards de este usuario
+        const dashboardsResponse = await axios.get(
+          `${base_url}/api/data/dashboards/${parsedUser.id}`
+        );
+        setDashboards(dashboardsResponse.data);
+
+        // c) Si tuvieras que traer alarmas, notificaciones, clientes asociados o rulechains,
+        //    haz aquí las llamadas correspondientes. Ejemplo para alarmas:
+        // const alarmsResponse = await axios.get(
+        //   `${base_url}/api/alarms/${parsedUser.id}`
+        // );
+        // setAlarms(alarmsResponse.data);
+
+        // Por simplicidad, dejamos loading en false cuando terminen las dos primeras
         setLoading(false);
       } catch (error) {
-        console.error("Error al obtener los devices_list:", error);
+        console.error("Error al obtener datos iniciales:", error);
         setLoading(false);
+
         if (error.response && error.response.status === 401) {
+          // El token pudo haber expirado, forzamos login
           navigate("/login");
         }
       }

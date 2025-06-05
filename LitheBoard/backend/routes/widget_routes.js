@@ -10,7 +10,7 @@ const {
   createWidgetSchema,
   updateWidgetSchema,
   deleteWidgetSchema,
-} = require('../schemas/widgetSchemas');
+} = require('../schemas/widget_schemas');
 
 // Obtener widgets con entidades por client_id y dashboard_id
 router.get(

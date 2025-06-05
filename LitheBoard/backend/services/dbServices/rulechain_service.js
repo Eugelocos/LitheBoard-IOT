@@ -1,8 +1,8 @@
 // backend/services/rulechain_service.js
 
-const db = require('../config/db');
-const AppError = require('../utils/appError');
-const { generateRulesEngineJson } = require('./rulechain_service_dependency'); 
+const db = require('../../config/db');
+const AppError = require('../../utils/app_error');
+const { generateRulesEngineJson } = require('../rulechain_service'); 
 // Nota: suponemos que `generateRulesEngineJson` está en un archivo dedicado o modificado.
 
  /**

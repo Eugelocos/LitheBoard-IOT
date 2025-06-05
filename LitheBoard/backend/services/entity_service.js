@@ -1,7 +1,7 @@
 // backend/services/entity_service.js
 
 const db = require('../config/db');
-const AppError = require('../utils/appError');
+const AppError = require('../utils/app_error');
 const { generateToken } = require('./otp_service');
 const { getDatasourceController } = require('../controllers/datasource_initializer');
 const eventBus = require('./event_bus');

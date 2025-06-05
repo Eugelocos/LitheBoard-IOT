@@ -10,7 +10,7 @@ const {
   updateDashboardSchema,
   deleteDashboardSchema,
   assignDashboardSchema,
-} = require('../schemas/dashboardSchemas');
+} = require('../schemas/dashboard_schemas');
 
 // Insertar dashboard
 router.post(

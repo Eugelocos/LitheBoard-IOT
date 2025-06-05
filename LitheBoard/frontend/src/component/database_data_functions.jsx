@@ -1,5 +1,5 @@
 import axios from "axios";
-import Device from "./App/DataStructures/device";
+import Device from "../features/dataStructures/device";
 import React, { useRef, useState, useEffect } from "react";
 import config from "@config";
 

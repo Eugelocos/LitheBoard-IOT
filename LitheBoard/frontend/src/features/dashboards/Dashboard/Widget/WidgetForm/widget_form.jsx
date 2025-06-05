@@ -12,7 +12,7 @@ import {
 import {
   setWidget,
   getDashboardWidgets,
-} from "../../../../../database_data_functions";
+} from "../../../../../component/database_data_functions";
 import widgetFieldsConfig from "./widget_forms_config";
 import { HexColorPicker } from "react-colorful";
 import CodeMirror from "@uiw/react-codemirror";

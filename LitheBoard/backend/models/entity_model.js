@@ -1,113 +1,128 @@
-const db = require("../config/db");
+// backend/models/entity_model.js
+
+const db = require('../config/db');
 
 /**
- * The function `getEntities` asynchronously retrieves all entities from a database table using a
- * parameterized query.
- * @returns {Promise<Object>} - The function `getEntities()` is returning the results obtained from executing the query
- * `SELECT * FROM entities` using `db.promise().query()`. The results are returned as an array
- * `[results]`.
+ * getEntities
+ * -----------
+ * Recupera todas las entidades de la tabla `entities`.
+ * @returns {Promise<Object[]>}
  */
 async function getEntities() {
-    const query = `SELECT * FROM entities`;
+  const query = `SELECT * FROM entities`;
 
-    try {
-        const [rows] = await db.promise().query(query);
-        return rows.map(entity => ({
-            ...entity,
-            datasource_config: (() => {
-                try {
-                    return entity.datasource_config; // Parsear JSON
-                } catch (error) {
-                    console.error(`Error parsing datasource_config for entity ${entity.entity_id}:`, error.message);
-                    return null;
-                }
-            })()
-        }));
-x
-    } catch (error) {
-        console.error('Error fetching entities:', error.message);
-        throw error;
-    }
+  try {
+    // Usamos db.query() directamente porque db ya es un pool promise
+    const [rows] = await db.query(query);
+
+    return rows.map(entity => ({
+      ...entity,
+      // Si `datasource_config` viene como JSON en la BD, 
+      // asumimos que MySQL2 ya lo parseó a objeto JS automáticamente.
+      // Si no, parsearíamos con JSON.parse(entity.datasource_config).
+      datasource_config: (() => {
+        try {
+          return entity.datasource_config;
+        } catch (error) {
+          console.error(
+            `Error parsing datasource_config for entity ${entity.entity_id}:`,
+            error.message
+          );
+          return null;
+        }
+      })()
+    }));
+  } catch (error) {
+    console.error('Error fetching entities:', error.message);
+    throw error;
+  }
 }
 
 /**
- * This function retrieves a token from a database based on the provided client_id and device_id.
- * @param {int} client_id - Client ID is a unique identifier assigned to a client or user in the system. It
- * helps in identifying and distinguishing different clients or users.
- * @param {int} entity_id - The `entity_id` parameter in the `getToken` function represents the unique
- * identifier of the entity for which you want to retrieve the token. It is used in the database query
- * to fetch the token associated with the specified `client_id` and `entity_id` from the `entities`
- * table.
- * @returns {Promise<String>} - The `getToken` function is returning a promise that queries the database to select the
- * token from the `datasource_config` from the `entities` table where the `client_id` matches the provided `client_id` and the
- * `entity_id` matches the provided `entity_id`. The function then returns the result of the query. If
- * there is an error during the query, it will be caught and logged before rethrowing the error
+ * getToken
+ * --------
+ * Busca en la tabla `entities` la configuración (datasource_config) 
+ * del cliente y entidad indicados, y devuelve el campo `token`.
+ * @param {number} client_id
+ * @param {number} entity_id
+ * @returns {Promise<String|null>}
  */
 async function getToken(client_id, entity_id) {
   try {
-    const [result] = await db.promise().query(
+    const [rows] = await db.query(
       "SELECT datasource_config FROM entities WHERE client_id = ? AND entity_id = ?",
       [client_id, entity_id]
     );
-    const datasource_config = result[0]?.datasource_config || {};
-    return datasource_config.token || null; 
+    const datasource_config = rows[0]?.datasource_config || {};
+    // Si `datasource_config` ya es objeto JS, devolvemos directamente:
+    return datasource_config.token || null;
   } catch (error) {
     console.error("Error al obtener el token:", error);
     throw error;
   }
 }
 
-
-
-//missing doc
-
+/**
+ * getDatasourceType
+ * -----------------
+ * Recupera el tipo de datasource de una entidad concreta.
+ * @param {number} client_id
+ * @param {number} entity_id
+ * @returns {Promise<String|null>}
+ */
 async function getDatasourceType(client_id, entity_id) {
   try {
-    const [result] = await db.promise().query(
+    const [rows] = await db.query(
       "SELECT datasource_config FROM entities WHERE client_id = ? AND entity_id = ?",
       [client_id, entity_id]
     );
-    const datasource_config = result[0]?.datasource_config || {};
-    return datasource_type || null; 
+    const datasource_config = rows[0]?.datasource_config || {};
+    // Aquí devolvemos `.datasource_type` en lugar de una variable inexistente
+    return datasource_config.datasource_type || null;
   } catch (error) {
     console.error("Error al obtener el tipo de datasource:", error);
     throw error;
   }
 }
 
+/**
+ * updateEntityStatus
+ * ------------------
+ * Actualiza el campo `status` dentro del JSON `datasource_config`
+ * de una entidad dada, y devuelve su valor actualizado.
+ * @param {number} client_id
+ * @param {number} entity_id
+ * @param {string|number|boolean} status
+ * @returns {Promise<Object|null>} - El JSON actualizado en `datasource_config`, o null si no existe.
+ */
 async function updateEntityStatus(client_id, entity_id, status) {
   try {
-    const [result] = await db.promise().query(
-      `UPDATE entities 
-       SET datasource_config = JSON_SET(
-         datasource_config, 
-         '$.status', 
-         ?
-       ) 
+    const [result] = await db.query(
+      `UPDATE entities
+         SET datasource_config = JSON_SET(
+           datasource_config, 
+           '$.status', 
+           ?
+         )
        WHERE client_id = ? AND entity_id = ?`,
       [status, client_id, entity_id]
     );
 
-    // Verificar si se actualizó algún registro
     if (result.affectedRows === 0) {
       throw new Error('No se encontró el registro para actualizar');
     }
 
-    // Opcional: Devolver el nuevo valor actualizado
-    const [updated] = await db.promise().query(
+    // Recuperar el JSON actualizado para devolverlo
+    const [updatedRows] = await db.query(
       'SELECT datasource_config FROM entities WHERE client_id = ? AND entity_id = ?',
       [client_id, entity_id]
     );
-    
-    return updated[0]?.datasource_config || null;
-
+    return updatedRows[0]?.datasource_config || null;
   } catch (error) {
     console.error("Error al actualizar el estado:", error);
     throw error;
   }
 }
-
-
 
 module.exports = {
   getEntities,
@@ -115,4 +130,3 @@ module.exports = {
   getDatasourceType,
   updateEntityStatus
 };
-

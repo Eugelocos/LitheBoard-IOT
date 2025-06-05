@@ -1,7 +1,7 @@
 // backend/services/notification_service.js
 
 const db = require('../config/db');
-const AppError = require('../utils/appError');
+const AppError = require('../utils/app_error');
 
 /**
  * Recupera notificaciones por client_id.

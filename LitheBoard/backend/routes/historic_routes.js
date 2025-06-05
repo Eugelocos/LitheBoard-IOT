@@ -8,7 +8,7 @@ const {
   getHistoricsByEntitySchema,
   getHistoricByClientSchema,
   createHistoricSchema,
-} = require('../schemas/historicSchemas');
+} = require('../schemas/historic_schemas');
 
 // Obtener historiales por entity_id
 router.get(

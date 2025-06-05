@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import './main.css'
-import App from "./component/App/app.jsx"
+import App from "./app/app.jsx"
 import reportWebVitals from './reportWebVitals.js';
 
 import { ReactFlowProvider } from '@xyflow/react';

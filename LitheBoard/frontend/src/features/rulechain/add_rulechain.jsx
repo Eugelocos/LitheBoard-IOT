@@ -8,7 +8,7 @@ import {
   IconButton,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import StatusBadge from "../../status_badge";
+import StatusBadge from "../../component/status_badge";
 import axios from "axios";
 import config from "@config";
 

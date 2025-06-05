@@ -1,6 +1,6 @@
 // backend/controllers/api/otp_controller.js
 
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 const OtpService = require('../../services/dbServices/otp_service');
 const { sendOtpEmail } = require('../mail_controller');
 

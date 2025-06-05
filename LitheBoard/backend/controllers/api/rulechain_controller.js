@@ -1,6 +1,6 @@
 // backend/controllers/api/rulechain_controller.js
 
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 const RulechainService = require('../../services/dbServices/rulechain_service');
 
 /**

@@ -1,6 +1,6 @@
 // backend/controllers/api/historic_controller.js
 
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 const HistoricService = require('../../services/historic_service');
 
 /**

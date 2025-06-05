@@ -1,5 +1,5 @@
 // backend/middlewares/validate.js
-const AppError = require('../utils/appError');
+const AppError = require('../utils/app_error');
 
 /**
  * validateSchema(schema, location) 

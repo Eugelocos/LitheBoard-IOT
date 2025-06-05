@@ -4,7 +4,7 @@ const router = express.Router();
 const otpController = require('../controllers/api/otp_controller');
 const { protect } = require('../middlewares/auth');
 const { validateSchema } = require('../middlewares/validate');
-const { requestOtpSchema, verifyOtpSchema } = require('../schemas/otpSchemas');
+const { requestOtpSchema, verifyOtpSchema } = require('../schemas/otp_schemas');
 
 // Solicitar OTP (no necesita estar autenticado)
 router.post('/request', validateSchema(requestOtpSchema), otpController.requestOtp);

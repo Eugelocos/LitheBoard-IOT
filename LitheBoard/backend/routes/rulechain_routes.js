@@ -10,7 +10,7 @@ const {
   createRulechainSchema,
   updateRulechainSchema,
   deleteRulechainSchema,
-} = require('../schemas/rulechainSchemas');
+} = require('../schemas/rulechain_schemas');
 
 // Obtener rulechains por client_id
 router.get(

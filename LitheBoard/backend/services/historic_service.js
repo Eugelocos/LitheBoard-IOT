@@ -1,7 +1,7 @@
 // backend/services/historic_service.js
 
 const db = require('../config/db');
-const AppError = require('../utils/appError');
+const AppError = require('../utils/app_error');
 
 /**
  * Recupera todos los historiales asociados a un entity_id.

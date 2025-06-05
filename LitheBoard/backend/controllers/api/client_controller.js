@@ -1,7 +1,7 @@
 // backend/controllers/api/client_controller.js
 
 const bcrypt = require('bcryptjs');
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 const ClientService = require('../../services/client_service');
 const { createSendToken } = require('../../middlewares/auth');
 

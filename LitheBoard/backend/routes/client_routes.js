@@ -11,7 +11,7 @@ const {
   getAssociatedClientsSchema,
   getClientsByIdsSchema,
   deleteSchema,
-} = require('../schemas/clientSchemas');
+} = require('../schemas/client_schemas');
 
 // Login
 router.post('/login', validateSchema(loginSchema), clientController.login);

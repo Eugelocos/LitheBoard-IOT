@@ -1,6 +1,6 @@
 // backend/controllers/api/dashboard_controller.js
 
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 const DashboardService = require('../../services/dashboard_service');
 
 /**

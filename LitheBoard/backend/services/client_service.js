@@ -2,7 +2,7 @@
 
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
-const AppError = require('../utils/appError');
+const AppError = require('../utils/app_error');
 
 /**
  * Busca un cliente por su email.
@@ -113,4 +113,29 @@ exports.deleteClient = async (clientId) => {
   // 4) Eliminar en clients
   await db.query('DELETE FROM clients WHERE client_id = ?', [clientId]);
   return true;
+};
+
+
+/**
+ * findById(clientId)
+ * ------------------
+ * Busca un cliente por su ID (client_id).
+ * @param {number} clientId
+ * @returns {Promise<object|null>} - { id, name, email, access_level, admin_id, password, password_changed_at } o null.
+ */
+exports.findById = async (clientId) => {
+  const query = `
+    SELECT
+      client_id           AS id,
+      name,
+      email,
+      password,
+      access_level_id     AS role,
+      admin_id
+    FROM clients
+    WHERE client_id = ?
+    LIMIT 1
+  `;
+  const [rows] = await db.query(query, [clientId]);
+  return rows.length ? rows[0] : null;
 };

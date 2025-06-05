@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NODE_TYPES } from '../../../data/node_schemas';
+import { NODE_TYPES } from '../../data/node_schemas';
 import {
   Button,
   MenuItem,

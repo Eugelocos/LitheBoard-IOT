@@ -1,4 +1,4 @@
-// backend/utils/appError.js
+// backend/utils/app_error.js
 
 class AppError extends Error {
   constructor(message, statusCode) {

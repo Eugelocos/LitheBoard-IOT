@@ -1,7 +1,7 @@
 // backend/controllers/api/alarm_controller.js
 
 const AlarmService = require('../../services/alarm_service');
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 
 /**
  * GET /api/alarm/:client_id

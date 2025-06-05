@@ -1,6 +1,6 @@
 // backend/controllers/api/entity_controller.js
 
-const AppError = require('../../utils/appError');
+const AppError = require('../../utils/app_error');
 const EntityService = require('../../services/entity_service');
 
 /**

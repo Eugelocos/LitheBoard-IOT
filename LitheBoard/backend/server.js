@@ -24,7 +24,7 @@ const DatasourceController = require('./controllers/datasource_controller');
 const entityModel = require('./models/entity_model');
 
 
-const errorHandler = require('./middlewares/errorHandler');
+const errorHandler = require('./middlewares/error_handler');
 /* The above code snippet is written in JavaScript and it is setting up a server using the
 Express framework. */
 

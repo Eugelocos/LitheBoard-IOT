@@ -1,20 +1,20 @@
 import React, { useRef, useState, useEffect } from "react";
-import "../../app.jsx";
+import "../../../app/app.jsx";
 import Content from "./Widget/WidgetForm/widgets_form_selection.jsx";
-import Disps from "../../Entities/disp.jsx";
+import Disps from "../../entities/disp.jsx";
 import DeviceList from "./Widget/dashboard_widget_list.jsx";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import "../../../../dashboards_panel.css";
-import "../../../../app.css";
+import "../../../dashboards_panel.css";
+import "../../../app.css";
 import EditWidgetDrawer from "./Widget/WidgetForm/Edit/edit_widget_form.jsx";
 import axios from "axios";
 import {
   getDashboardWidgets,
   getHistorialEntity,
-} from "../../../database_data_functions.jsx";
+} from "../../../component/database_data_functions.jsx";
 import mqtt from "mqtt";
-import socket from "../../../../socket.js";
+import socket from "../../../socket.js";
 import dayjs from "dayjs";
 import config from "@config";
 import { Divider } from "@mui/material";

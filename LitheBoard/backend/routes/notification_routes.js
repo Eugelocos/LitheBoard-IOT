@@ -8,7 +8,7 @@ const {
   getNotificationsSchema,
   createNotificationSchema,
   markNotificationAsReadSchema,
-} = require('../schemas/notificationSchemas');
+} = require('../schemas/notification_schemas');
 
 // Obtener notificaciones por client_id
 router.get(

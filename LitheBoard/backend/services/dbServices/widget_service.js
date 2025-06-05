@@ -1,7 +1,7 @@
 // backend/services/widget_service.js
 
-const db = require('../config/db');
-const AppError = require('../utils/appError');
+const db = require('../../config/db');
+const AppError = require('../../utils/app_error');
 
 /**
  * Recupera widgets con entidades asociadas para client_id y dashboard_id.

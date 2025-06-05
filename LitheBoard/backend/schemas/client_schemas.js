@@ -3,13 +3,13 @@ const Joi = require('joi');
 
 exports.loginSchema = Joi.object({
   email: Joi.string().email().required(),
-  password: Joi.string().min(8).required(),
+  password: Joi.string().min(1).required(),
 });
 
 exports.registerSchema = Joi.object({
   name: Joi.string().max(100).required(),
   email: Joi.string().email().required(),
-  password: Joi.string().min(8).required(),
+  password: Joi.string().min(1).required(),
   access_level: Joi.string().valid('1', '2', '3').required(), 
   adminEmail: Joi.string().email().optional().allow('', null),
 });

@@ -12,7 +12,7 @@ import {
   Divider,
   Box,
 } from "@mui/material";
-import ProfileSettingsPanel from "../../Profile/profile_settings_panel ";
+import ProfileSettingsPanel from "../../profile/profile_settings_panel ";
 import DashboardIcon from "@mui/icons-material/DashboardRounded";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import DevicesIcon from "@mui/icons-material/Devices";

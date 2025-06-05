@@ -1,8 +1,8 @@
 // backend/services/otp_service.js
 
-const db = require('../config/db');
+const db = require('../../config/db');
 const crypto = require('crypto');
-const AppError = require('../utils/appError');
+const AppError = require('../../utils/app_error');
 
 /**
  * Genera un OTP, lo almacena en la tabla `otps` (o `otp_table`) y retorna { client_id, otp }.
@@ -25,7 +25,7 @@ exports.generateAndStoreOtp = async (email) => {
 
   // Asumimos que existe una tabla `otps` con columnas: client_id, otp, expires_at
   const insertQuery = `
-    INSERT INTO otps (client_id, otp, expires_at)
+    INSERT INTO otp_tokens (client_id, otp, expires_at)
     VALUES (?, ?, ?)
     ON DUPLICATE KEY UPDATE otp = VALUES(otp), expires_at = VALUES(expires_at)
   `;
@@ -46,7 +46,7 @@ exports.generateAndStoreOtp = async (email) => {
 exports.verifyOtp = async (clientId, otp) => {
   const query = `
     SELECT otp, expires_at
-    FROM otps
+    FROM otp_tokens
     WHERE client_id = ? AND otp = ?
   `;
   const [rows] = await db.query(query, [clientId, otp]);
@@ -59,7 +59,7 @@ exports.verifyOtp = async (clientId, otp) => {
   }
 
   // Opcional: eliminar o marcar el OTP como usado
-  await db.query('DELETE FROM otps WHERE client_id = ?', [clientId]);
+  await db.query('DELETE FROM otp_tokens WHERE client_id = ?', [clientId]);
 
   return true;
 };

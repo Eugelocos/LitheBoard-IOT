@@ -22,7 +22,8 @@ import {
 import { MuiOtpInput } from "mui-one-time-password-input";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import config from "@config";
-import StatusBadge from "../status_badge";
+import StatusBadge from "../../component/status_badge";
+import api from "../../services/api";
 
 function Login() {
   axios.defaults.withCredentials = true;
@@ -48,11 +49,13 @@ function Login() {
     setIsSubmitting(true);
     setStatus(1);
     try {
-      const response = await axios.post(`${base_url}/api/login`, form_data);
-      setUserData(response.data.user);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
+      const response = await axios.post(`${base_url}/api/clients/login`, form_data);
+      console.log("user response, ", response)
+      setUserData(response.data.data.client);
+      localStorage.setItem("user", JSON.stringify(response.data.data.client));
+      localStorage.setItem("token", response.data.token);
       // Solicitar OTP
-      await axios.post(`${base_url}/api/request-otp`, {
+      await axios.post(`${base_url}/api/otp/request`, {
         email: form_data.email,
       });
       console.log("OTP enviado");
@@ -71,27 +74,27 @@ function Login() {
   };
 
   const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setStatus(1);
-    try {
-      const response = await axios.post(`${base_url}/api/verify-otp`, {
+  e.preventDefault();
+  if (isSubmitting) return;
+  setIsSubmitting(true);
+  setStatus(1);
+  try {
+      const response = await api.post("/api/otp/verify", {
         client_id: user_data.id,
         otp: otp,
       });
-      setStatus(2);
-      setLoggedIn(true);
-      localStorage.setItem("user", JSON.stringify(user_data));
-    } catch (error) {
-      setStatus(3);
-      setError(
-        error.response ? error.response.data.message : "Error desconocido"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    console.log("OTP:", otp)
+    setStatus(2);
+    setLoggedIn(true);
+  } catch (error) {
+    setStatus(3);
+    setError(
+      error.response ? error.response.data.message : "Unkwonwn error"
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (logged_in) {
     return <Navigate to="/dashboard" />;

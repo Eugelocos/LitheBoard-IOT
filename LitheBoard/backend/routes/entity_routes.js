@@ -1,4 +1,4 @@
-entity_routes.js// backend/routes/entity_routes.js
+// backend/routes/entity_routes.js
 const express = require('express');
 const router = express.Router();
 const entityController = require('../controllers/api/entity_controller');
@@ -11,7 +11,7 @@ const {
   updateEntitySchema,
   deleteEntitySchema,
   updateEntityRulechainSchema,
-} = require('../schemas/entitySchemas');
+} = require('../schemas/entity_schemas');
 
 // Obtener todas las entidades de un client_id
 router.get(
