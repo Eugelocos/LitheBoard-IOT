@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import axios from "axios";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import {
   IconButton,
@@ -14,6 +13,7 @@ import {
   Container
 } from "@mui/material";
 import config from "@config";
+import api from "../../services/api.js"
 
 function AddAlarm({ client_id, onCancel, onSave, entities }) {
   const [selected_entity, setSelectedEntity] = useState("");
@@ -36,10 +36,10 @@ function AddAlarm({ client_id, onCancel, onSave, entities }) {
       alarm_condition: condition
     };
 
-    axios
-      .post(`${base_url}/api/alarms/insert`, alarmData)
+    api
+      .post(`${base_url}/api/alarm`, alarmData)
       .then((response) => {
-        console.log("Alarm saved:", response.data);
+        console.log("Alarm saved:", response.data.data);
         setSelectedEntity("");
         setValor("");
         setSelectedKey("");

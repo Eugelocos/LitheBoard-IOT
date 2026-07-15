@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { TextField, Button, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import axios from "axios";
 import LogoutIcon from '@mui/icons-material/Logout';
 import SaveIcon from '@mui/icons-material/Save';
 import config from "@config";
+import api from "../../services/api"
+
 const MyTextField = styled(TextField)({
   "& .MuiFilledInput-underline:after": {
     borderBottomColor: "#232939",
@@ -39,12 +40,12 @@ const ProfileSettingsPanel = ({ user, handleLogout }) => {
 
   const handleSave = async () => {
     try {
-      const response = await axios.put(`${base_url}/api/user/update`, {
+      const response = await api.put(`${base_url}/api/clients`, {
         id: user.id,
         name,
         email,
       });
-      setMessage({ text: response.data.message, isError: false });
+      setMessage({ text: response.data.data.message, isError: false });
     } catch (error) {
       setMessage({ text: 'Error updating profile.', isError: true });
     }

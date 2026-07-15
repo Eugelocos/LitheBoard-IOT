@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { DataGrid } from "@mui/x-data-grid";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -11,15 +10,16 @@ import {
   Typography,
   Fab, Box} from "@mui/material"
 import config from "@config";
+import api from "../../services/api"
+
 function AlarmList({ client_id, alarms, setAlarms, entities }) {
   const [isAddAlarmVisible, setIsAddAlarmVisible] = useState(false);
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
   useEffect(() => {
-    // Fetch alarms from the backend
-    axios
+    api
       .get(`${base_url}/api/alarms/${client_id}`)
       .then((response) => {
-        setAlarms(response.data);
+        setAlarms(response.data.data);
       })
       .catch((error) => {
         console.error("Error fetching alarms:", error);
@@ -37,10 +37,10 @@ function AlarmList({ client_id, alarms, setAlarms, entities }) {
   const cancelAdd= () => setIsAddAlarmVisible(false);
 
   const handleSaveAlarm = (newAlarm) => {
-    axios
+    api
       .get(`${base_url}/api/alarms/${client_id}`)
       .then((response) => {
-        setAlarms(response.data);
+        setAlarms(response.data.data);
       })
       .catch((error) => {
         console.error("Error fetching alarms:", error);

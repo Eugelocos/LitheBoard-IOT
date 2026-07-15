@@ -37,7 +37,8 @@ import {
 } from "react-leaflet";
 
 import WidgetCustomValueCard from "./WidgetTypes/widget_custom_value_card";
-import config from "@config";
+import env_config from "@config";
+import api from "../../../../services/api"
 
 const IOSSwitch = styled((props) => (
   <Switch focusVisibleClassName=".Mui-focusVisible" disableRipple {...props} />
@@ -108,7 +109,7 @@ function DeviceCard({
   const [chart_size, setchart_size] = useState({ width: 0, height: 0 });
   const [historial, setHistorial] = useState({});
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
+  const base_url = `${env_config.BACKEND_URL}:${env_config.BACKEND_API_PORT}`;
 
   useEffect(() => {
     setConfig(device.config);
@@ -150,23 +151,20 @@ function DeviceCard({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  const eliminarWidget = () => {
+  const eliminarWidget = async () => {
     try {
-      fetch(`${base_url}/api/data/widgets/delete/${device.widget_id}`, {
-        method: "DELETE",
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.message === "Widget deleted successfully") {
-            devices_list.splice(index, 1);
-            setDevicesList([...devices_list]);
-          }
-        })
-        .catch((error) => {
-          console.error("Error en la solicitud:", error);
-        });
+      const { data } = await api.delete(`/api/widget/${device.widget_id}`);
+
+      if (data.status === "success") {
+        setDevicesList((prev) =>
+          prev.filter((widget) => widget.widget_id !== device.widget_id)
+        );
+      }
     } catch (error) {
-      console.error("Error deleting widget:", error);
+      console.error(
+        "Error deleting widget:",
+        error.response?.data || error.message
+      );
     }
   };
 

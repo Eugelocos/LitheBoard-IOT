@@ -45,7 +45,7 @@ router.put(
   '/:widget_id',
   protect,
   restrictTo('admin', 'manager'),
-  validateSchema(updateWidgetSchema, 'params'),
+  validateSchema(updateWidgetSchema),
   widgetController.updateWidget
 );
 

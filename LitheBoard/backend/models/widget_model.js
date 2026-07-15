@@ -17,7 +17,7 @@ async function getWidgetsByEntityId(entity_id, client_id) {
   const query = "SELECT * FROM widgets WHERE entity_id = ? AND client_id = ?";
 
   try {
-    const [results] = await db.promise().query(query, [entity_id, client_id]);
+    const [results] = await db.query(query, [entity_id, client_id]);
     console.log("Widgets fetched successfully.");
     return Array.isArray(results) ? results : [results];
   } catch (error) {

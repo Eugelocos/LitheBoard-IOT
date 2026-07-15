@@ -12,7 +12,7 @@ async function getRulechains(client_id) {
   }
   try {
     const query = `SELECT * FROM rulechain WHERE user_id = ?`;
-    const [rows] = await db.promise().query(query, [client_id]);
+    const [rows] = await db.query(query, [client_id]);
     return(rows);
   } catch (err) {
     console.error("Error fetching rulechains:", err);
@@ -31,7 +31,7 @@ async function getRulechainById(rulechain_id) {
   }
   try {
     const query = `SELECT * FROM rulechain WHERE rulechain_id = ?`;
-    const [rows] = await db.promise().query(query, [rulechain_id]);
+    const [rows] = await db.query(query, [rulechain_id]);
     if (rows.length === 0) {
       console.error("Rulechain not found" );
       return null;

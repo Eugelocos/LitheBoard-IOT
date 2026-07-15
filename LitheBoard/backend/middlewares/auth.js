@@ -23,10 +23,11 @@ exports.protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
     }
 
+
     if (!token) {
       return next(new AppError('No estás autenticado. Proporciona un token.', 401));
     }
-
+    
     // 2) Verificar y decodificar el token
     let decoded;
     try {
@@ -58,17 +59,25 @@ exports.protect = async (req, res, next) => {
       }
     }
 
-    // 5) Si todo ok, adjuntamos los datos mínimos del cliente en req.user
+    const roles = {
+
+      1 : "admin", 
+      2 : "client",
+      // ...
+
+    }
+    // 5) Si todo ok, se adjuntan los datos mínimos del cliente en req.user
     req.user = {
       id: clientRecord.id,
       name: clientRecord.name,
       email: clientRecord.email,
-      role: clientRecord.role,
+      role: roles[clientRecord.role],
       admin_id: clientRecord.admin_id,
     };
     next();
   } catch (err) {
-    return next(new AppError('No se pudo verificar la autenticación.', 500));
+    console.error("ERROR EN PROTECT:", err);
+    return next(new AppError(err.message, 500));
   }
 };
 
@@ -101,7 +110,7 @@ exports.createSendToken = (client, statusCode, res) => {
   // 1) Crear el payload mínimo (id y role)
   const role = client.admin_id!=null ? "client" : "admin";
 
-  const payload = { id: client.id, role: role };
+  const payload = { id: client.client_id, role: role };
 
   // 2) Firmar el token con el secreto y establecer expiración
   const token = jwt.sign(payload, jwtSecret, {

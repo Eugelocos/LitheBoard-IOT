@@ -15,10 +15,10 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 
-import axios from "axios";
 import RulechainBoard from "./rulechain_board";
 import AddRulechain from "./add_rulechain";
 import config from "@config";
+import api from "../../services/api"
 
 function RulechainList({ rulechains, setRulechains, entities, user }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -34,9 +34,9 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
     if (!user?.id) return;
     (async () => {
       try {
-        const { data } = await axios.get(
-          `${base_url}/api/data/rulechains/get`,
-          { params: { user_id: user.id } }
+        const { data } = await api.get(
+          `${base_url}/api/rulechain`,
+          { params: { client_id: user.id } }
         );
         setRulechains(data);
       } catch (e) {
@@ -47,8 +47,8 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
 
   const handleEditClick = async ({ rulechain_id }) => {
     try {
-      const { data } = await axios.get(
-        `${base_url}/api/data/rulechains/get/byId/${rulechain_id}`
+      const { data } = await api.get(
+        `${base_url}/api/rulechain/${rulechain_id}`
       );
       setSelectedRulechain(data);
       setEditedName(data.name);
@@ -62,8 +62,8 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
   const handleSaveEdit = async () => {
     if (!selectedRulechain) return;
     try {
-      await axios.put(
-        `${base_url}/api/data/rulechains/update`,
+      await api.put(
+        `${base_url}/api/rulechain`,
         {
           rulechain_id: selectedRulechain.rulechain_id,
           user_id: selectedRulechain.user_id,
@@ -89,8 +89,8 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
 
   const handleDelete = async ({ rulechain_id }) => {
     try {
-      await axios.delete(
-        `${base_url}/api/data/rulechains/delete/${rulechain_id}`
+      await api.delete(
+        `${base_url}/api/rulechain/${rulechain_id}`
       );
       setRulechains(prev => prev.filter(r => r.rulechain_id !== rulechain_id));
     } catch (err) {

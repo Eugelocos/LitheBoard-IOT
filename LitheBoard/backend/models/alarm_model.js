@@ -12,7 +12,7 @@ const db = require("../config/db");
 async function getAlarmsByDevice(device_id, client_id) {
   const query = "SELECT * FROM alarms WHERE entity_id = ? AND client_id = ?";
   try {
-    const [result] = await db.promise().query(query, [device_id, client_id]);
+    const [result] = await db.query(query, [device_id, client_id]);
     
     if (result.length === 0) {
       return null;
@@ -41,7 +41,7 @@ async function saveAlarmNotification(alarm_id, client_id, messageData) {
   `;
   console.log("Saving notification...");
   try {
-    const result = await db.promise().query(query, [
+    const result = await db.query(query, [
       alarm_id,
       client_id,
       JSON.stringify(messageData),

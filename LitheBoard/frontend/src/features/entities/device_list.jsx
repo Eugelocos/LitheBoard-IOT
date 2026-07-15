@@ -17,13 +17,13 @@ import {
   Slide,
   Stack, Divider
 } from '@mui/material';
-import axios from 'axios';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import AddDevice from './add_device';
 import config from '@config';
 import StatusBadge from '../../component/status_badge';
+import api from "../../services/api"
 
 function DeviceList(props) {
   const {
@@ -65,24 +65,26 @@ function DeviceList(props) {
     setDrawerOpen(true);
   };
 
-  const handleDelete = async entity => {
+  const handleDelete = async (entity) => {
     try {
       if (!Array.isArray(entities)) return;
-      const match = entities.find(e => e.entity_id === entity.id);
+
+      const match = entities.find((e) => e.entity_id === entity.id);
       if (!match) {
         console.warn(`Entity not found for id ${entity.id}`);
         return;
       }
-      const response = await fetch(
-        `${baseUrl}/api/entities/delete/${entity.id}`,
-        { method: 'DELETE' }
-      );
-      const data = await response.json();
-      if (data.message === 'Entity deleted successfully') {
-        setEntities(prev => prev.filter(d => d.id !== entity.id));
+
+      const { data } = await api.delete(`/api/entity/${entity.id}`);
+
+      if (data.message === "Entity deleted successfully") {
+        setEntities((prev) => prev.filter((d) => d.id !== entity.id));
       }
-    } catch (err) {
-      console.error('Error deleting entity:', err);
+    } catch (error) {
+      console.error(
+        "Error deleting entity:",
+        error.response?.data || error.message
+      );
     }
   };
 
@@ -97,8 +99,8 @@ function DeviceList(props) {
         rulechain_id: editedRulechainId,
       };
       
-      await axios.put(
-        `${baseUrl}/api/data/entities/update`,
+      await api.put(
+        `${baseUrl}/api/entity`,
         updatedData
       );
       // update local list

@@ -189,8 +189,6 @@ function startHeartbeatTimer(entity) {
   const key = `${entity.client_id}:${entity.entity_id}`;
   const timeout = entity.datasource_config.heartbeat_timeout || 60000;
   if (heartbeatTimers.has(key)) clearTimeout(heartbeatTimers.get(key));
-    console.log("######################################")
-    console.log("entity:", entity)
   const timer = setTimeout(async () => {
     entity.datasource_config.status = "inactive";
 

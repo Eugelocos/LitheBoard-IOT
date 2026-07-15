@@ -27,7 +27,7 @@ async function generateOtp(client_id, db) {
       'INSERT INTO otp_tokens (client_id, otp, expires_at, used) VALUES (?, ?, ?, ?)';
     const values = [client_id, otp, expiresAt, false];
 
-    await db.promise().query(query, values);
+    await db.query(query, values);
 
 
     return otp;
@@ -61,7 +61,7 @@ async function verifyOtpInDatabase(client_id, otp, db) {
   try {
 
     const query = 'SELECT otp, expires_at, used FROM otp_tokens WHERE client_id = ? AND otp = ?';
-    const [results] = await db.promise().query(query, [client_id, otp]);
+    const [results] = await db.query(query, [client_id, otp]);
 
     if (results.length === 0) {
       return false; 
@@ -81,7 +81,7 @@ async function verifyOtpInDatabase(client_id, otp, db) {
 
 
     const updateQuery = 'UPDATE otp_tokens SET used = TRUE WHERE otp = ?';
-    await db.promise().query(updateQuery, [otp]);
+    await db.query(updateQuery, [otp]);
 
     return true;
   } catch (err) {

@@ -8,16 +8,15 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "../../../dashboards_panel.css";
 import "../../../app.css";
 import EditWidgetDrawer from "./Widget/WidgetForm/Edit/edit_widget_form.jsx";
-import axios from "axios";
 import {
   getDashboardWidgets,
   getHistorialEntity,
 } from "../../../component/database_data_functions.jsx";
 import mqtt from "mqtt";
 import socket from "../../../socket.js";
-import dayjs from "dayjs";
 import config from "@config";
 import { Divider } from "@mui/material";
+import api from "../../../services/api.js"
 
 function Dashboard(props) {
   const handleMouseOver = (e) => {
@@ -84,13 +83,13 @@ function Dashboard(props) {
       };
 
       // Realizamos la solicitud para editar el widget
-      return axios
+      return api
         .put(
-          `${base_url}/api/data/widgets/update/${updated_widget.widget_id}`,
+          `${base_url}/api/widget/${updated_widget.widget_id}`,
           updated_widget
         )
         .then((response) => {
-          console.log("Widget actualizado:", response.data);
+          console.log("Widget actualizado:", response.data.data);
 
           // Opcional: Obtener nuevamente los widgets del dashboard
           window.location.reload();
@@ -112,8 +111,8 @@ function Dashboard(props) {
   useEffect(() => {
     socket.on("data_updated", async ({ entity_id }) => {
       try {
-        const resp = await axios.get(
-          `${base_url}/api/data/historic/ei/get/${entity_id}`
+        const resp = await api.get(
+          `${base_url}/api/historic/entity/${entity_id}`
         );
         const allHistory = resp.data;
         if (!allHistory.length) return;
@@ -208,6 +207,8 @@ function Dashboard(props) {
     document.getElementsByTagName("body")[0].style.backgroundColor = "#F0F0F0";
   }
 
+
+  // HORROR ERROR ARREGLAR LUEGO CON BACKEND SE MANEJA POR DIOOOOSSSS
   const publishMessage = (pubTopic, message) => {
     const client = mqtt.connect("ws://broker.emqx.io:8083/mqtt");
     client.on("connect", () => {

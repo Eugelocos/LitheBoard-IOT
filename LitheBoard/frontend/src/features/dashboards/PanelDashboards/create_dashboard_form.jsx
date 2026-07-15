@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../../../services/api.js"
 
 function CreateDashboardForm({ dashboards, setDashboards }) {
   const [name, setName] = useState("");
@@ -9,12 +9,12 @@ function CreateDashboardForm({ dashboards, setDashboards }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("/api/dashboards/set", {
+      const response = await api.post("/api/dashboard", {
         name,
         description,
         client_id: user.id,
       });
-      const new_dashboard = response.data;
+      const new_dashboard = response.data.data;
       setDashboards([...dashboards, new_dashboard]);
       setName("");
       setDescription("");

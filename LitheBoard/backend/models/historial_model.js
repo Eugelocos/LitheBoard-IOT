@@ -25,7 +25,7 @@ async function saveMessage(entity_id, client_id, selected_key, data) {
     const query = 'INSERT INTO historial (entity_id, date, data, client_id, selected_key) VALUES (?, NOW(), ?, ?, ?)';
     
     try {
-        const result = await db.promise().query(query, [entity_id, JSON.stringify(data), client_id, null]);
+        const result = await db.query(query, [entity_id, JSON.stringify(data), client_id, null]);
         console.log('Message saved');
         return result;
     } catch (error) {
@@ -39,7 +39,7 @@ async function getLastHistoricByEntityId(entity_id) {
     const query = "SELECT * FROM historial WHERE entity_id = ? ORDER BY date DESC LIMIT 1";
 
     try {
-        const result = await db.promise().query(query, [entity_id]);
+        const result = await db.query(query, [entity_id]);
         return result;
     } catch (error) {
         console.error('Getting historic error:', error);

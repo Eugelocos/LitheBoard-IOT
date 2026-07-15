@@ -14,19 +14,40 @@ const {
 } = require('../schemas/client_schemas');
 
 // Login
-router.post('/login', validateSchema(loginSchema), clientController.login);
+router.post(
+  '/login', 
+  validateSchema(loginSchema), 
+  clientController.login
+);
 
 // Obtener sesión (opcionalmente protegido)
-router.get('/session', protect, clientController.getUserSession);
+router.get(
+  '/session', 
+  protect, 
+  clientController.getUserSession
+);
 
 // Logout (JWT puro no requiere destruir sesión en servidor)
-router.post('/logout', protect, clientController.logout);
+router.post(
+  '/logout', 
+  protect, 
+  clientController.logout
+);
 
 // Register
-router.post('/register', validateSchema(registerSchema), clientController.register);
+router.post(
+  '/register', 
+  validateSchema(registerSchema), 
+  clientController.register
+);
 
 // Actualizar cliente
-router.put('/', protect, validateSchema(updateSchema), clientController.updateClient);
+router.put(
+  '/', 
+  protect, 
+  validateSchema(updateSchema), 
+  clientController.updateClient
+);
 
 // Obtener clientes asociados a un admin
 router.get(

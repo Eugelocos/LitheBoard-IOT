@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 
 import { faBars } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -29,6 +28,7 @@ import {
   ExpandLess as ExpandLessIcon,
 } from "@mui/icons-material";
 import config from "@config";
+import api from "../../../services/api"
 
 function TopMenu({
   user,
@@ -55,8 +55,8 @@ function TopMenu({
 
   const handleLogout = async () => {
     try {
-      await axios.post(
-        `${base_url}/api/logout`,
+      await api.post(
+        `${base_url}/api/clients/logout`,
         {},
         { withCredentials: true }
       );
@@ -106,9 +106,9 @@ function TopMenu({
   }, [user, alarms]);
 
   const handleMarkAsRead = (notification_id) => {
-    axios
+    api
       .post(
-        `${base_url}/api/notifications/markAsRead/${notification_id}`
+        `${base_url}/api/notification/${notification_id}/read`
       )
       .then(() => {
         setAllNotifications((prevNotifications) =>

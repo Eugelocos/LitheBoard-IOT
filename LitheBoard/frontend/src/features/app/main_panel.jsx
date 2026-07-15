@@ -3,8 +3,6 @@ import Dashboard from "../dashboards/Dashboard/dashboard";
 import "../../dashboards_panel.css";
 import DeviceList from "../entities/device_list";
 import DashboardListPanel from "../dashboards/PanelDashboards/dashboard_list_panel";
-import { getDevice } from "../../component/database_data_functions";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import TopMenu from "../menu/TopMenu/top_menu";
 import ProfileSettingsPanel from "../profile/profile_settings_panel ";
@@ -13,8 +11,9 @@ import { Drawer, Button, Toolbar } from "@mui/material";
 import AlarmList from "../alarms/alarm_list";
 import ClientList from "../linkedClients/client_list";
 import config from "@config";
+import api from "../../services/api.js";
 
-import RulechainList from "../rulechain/rulechain_list.jsx"
+import RulechainList from "../rulechain/rulechain_list.jsx";
 
 const entityTest = {
   entity_id: 234,
@@ -48,11 +47,9 @@ function DashboardPanel() {
   const [loading, setLoading] = useState(true);
 
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
- useEffect(() => {
-    // 1) Intentamos leer el objeto 'user' almacenado en localStorage
+  useEffect(() => {
     const storedUserJSON = localStorage.getItem("user");
     if (!storedUserJSON) {
-      // Si no hay usuario en localStorage, redirigimos a login
       navigate("/login");
       return;
     }
@@ -66,39 +63,31 @@ function DashboardPanel() {
       return;
     }
 
-    // Guardamos en el estado local
+
     setUser(parsedUser);
 
-    // 2) Con el user ya disponible, obtenemos devices y dashboards
     const fetchData = async () => {
       try {
-        // a) Llamamos a getDevice (que internamente usa tu propia función HTTP)
-        //    Suponiendo que getDevice retorna un objeto { data: [...] }
-        const devicesResponse = await getDevice(parsedUser.id);
-        // Si getDevice devuelve directamente el array, usa: setEntities(devicesResponse)
-        setEntities(devicesResponse.data);
+        console.log(localStorage.getItem("token"));
+        const devicesResponse = await api.get(`/api/entity`, {
+          params: { client_id: parsedUser.id },
+        });
+        console.log("devicecs:", devicesResponse)
+        setEntities(devicesResponse.data.data.entities);
 
-        // b) Hacemos la petición para traer los dashboards de este usuario
-        const dashboardsResponse = await axios.get(
-          `${base_url}/api/data/dashboards/${parsedUser.id}`
+        const dashboardsResponse = await api.get(
+          `/api/dashboard/${parsedUser.id}`
         );
-        setDashboards(dashboardsResponse.data);
+        console.log("dashboard:", dashboardsResponse)
+        setDashboards(dashboardsResponse.data.data.dashboards);
 
-        // c) Si tuvieras que traer alarmas, notificaciones, clientes asociados o rulechains,
-        //    haz aquí las llamadas correspondientes. Ejemplo para alarmas:
-        // const alarmsResponse = await axios.get(
-        //   `${base_url}/api/alarms/${parsedUser.id}`
-        // );
-        // setAlarms(alarmsResponse.data);
 
-        // Por simplicidad, dejamos loading en false cuando terminen las dos primeras
         setLoading(false);
       } catch (error) {
         console.error("Error al obtener datos iniciales:", error);
         setLoading(false);
 
         if (error.response && error.response.status === 401) {
-          // El token pudo haber expirado, forzamos login
           navigate("/login");
         }
       }
@@ -110,10 +99,10 @@ function DashboardPanel() {
   useEffect(() => {
     if (!user?.id) return;
     const fetchData = async () => {
-      axios
-        .get(`${base_url}/api/alarms/${user?.id}`)
+      api
+        .get(`/api/alarm/${user?.id}`)
         .then((response) => {
-          setAlarms(response.data);
+          setAlarms(response.data.data);
         })
         .catch((error) => {
           console.error("Error fetching alarms:", error);
@@ -126,11 +115,11 @@ function DashboardPanel() {
     if (!user?.id) return;
     const fetchData = async () => {
       try {
-        const response = await axios.get(
-          `${base_url}/api/data/rulechains/get`,
+        const response = await api.get(
+          `/api/rulechain/`,
           { params: { client_id: user.id } }
         );
-        setRulechains(response.data);
+        setRulechains(response.data.data);
       } catch (error) {
         console.error("Error fetching rulechains:", error);
       }
@@ -140,10 +129,10 @@ function DashboardPanel() {
 
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get(
-        `${base_url}/api/notifications/get/${user.id}`
+      const response = await api.get(
+        `${base_url}/api/notification/${user.id}`
       );
-      const notifications = response.data;
+      const notifications = response.data.data;
 
       const notificationsWithDetails = notifications.map((notification) => {
         const alarm =
@@ -171,19 +160,20 @@ function DashboardPanel() {
     setEntities([...entities, new_device]);
   };
 
+  //ERROR INCONSISTENCIA
   const handleAddDashboard = async () => {
     try {
       const newDashboard = {
         id: dashboards.length + 1,
-        name: `dashboard ${entities.length + 1}`,
+        name: `dashboard ${dashboards.length + 1}`,
         description: "Dashboard",
         client_id: user.id,
       };
 
-      await axios.post(`${base_url}/api/dashboards/set`, newDashboard);
+      await api.post(`${base_url}/api/dashboard`, newDashboard);
 
-      const updatedDashboards = await axios.get(
-        `${base_url}/api/data/dashboards/${user.id}`
+      const updatedDashboards = await api.get(
+        `${base_url}/api/dashboard/${user.id}`
       );
       setDashboards(updatedDashboards.data);
     } catch (error) {
@@ -214,7 +204,7 @@ function DashboardPanel() {
 
   const handleLogout = async () => {
     try {
-      await axios.post(`${base_url}/api/logout`, {}, { withCredentials: true });
+      await api.post(`${base_url}/api/clients/logout`, {}, { withCredentials: true });
       navigate("/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
@@ -275,7 +265,7 @@ function DashboardPanel() {
             width: 250,
             backgroundColor: "#232939",
             zIndex: (theme) => theme.zIndex.drawer - 100,
-            borderRight: "none"
+            borderRight: "none",
           },
         }}
         variant="permanent"
@@ -393,7 +383,13 @@ function DashboardPanel() {
             className="rulechain-editor min-[500px]:p-10 px-30 w-full m-[0.25rem]"
             style={{ display: "none" }}
           >
-            <RulechainList entity={entityTest} rulechains={rulechains} setRulechains={setRulechains} entities={entities} user={user}></RulechainList>
+            <RulechainList
+              entity={entityTest}
+              rulechains={rulechains}
+              setRulechains={setRulechains}
+              entities={entities}
+              user={user}
+            ></RulechainList>
           </div>
 
           {user?.access_level_id === 1 && (

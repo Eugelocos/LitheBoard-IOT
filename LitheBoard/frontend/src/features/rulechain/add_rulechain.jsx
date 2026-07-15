@@ -9,8 +9,8 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import StatusBadge from "../../component/status_badge";
-import axios from "axios";
 import config from "@config";
+import api from "../../services/api"
 
 function AddRulechain({ onAddRulechain, showRulechainList, setRulechains, user }) {
   const nameRef = useRef();
@@ -22,13 +22,13 @@ function AddRulechain({ onAddRulechain, showRulechainList, setRulechains, user }
     setStatus(1);
     const name = nameRef.current.value?.trim();
     const description = descRef.current.value?.trim();
-console.log(  base_url);
     if (!name) {
       setStatus(3);
       return;
     }
+    
     console.log(user);
-    const payload = {
+    const new_rulechain = {
       user_id: user.id,
       name,
       description: description || null,
@@ -37,12 +37,12 @@ console.log(  base_url);
     };
 
     try {
-      const { data } = await axios.post(
-        `${base_url}/api/data/rulechains/insert`,
-        payload
+      const { data } = await api.post(
+        `${base_url}/api/rulechain`,
+        new_rulechain
       );
       setStatus(2);
-      onAddRulechain(data);
+      onAddRulechain(data.data.rulechain);
       nameRef.current.value = "";
       descRef.current.value = "";
       showRulechainList(false);

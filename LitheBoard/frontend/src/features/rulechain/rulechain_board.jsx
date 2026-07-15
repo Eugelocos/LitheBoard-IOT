@@ -10,7 +10,7 @@ import {
 } from "@xyflow/react";
 import NodePalette from "./node_palette";
 import "@xyflow/react/dist/style.css";
-import axios from "axios";
+import api from "../../services/api"
 import config from "@config";
 
 // Importa nodos personalizados

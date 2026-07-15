@@ -1,7 +1,7 @@
-import axios from "axios";
 import Device from "../features/dataStructures/device";
 import React, { useRef, useState, useEffect } from "react";
 import config from "@config";
+import api from "../services/api"
 
 const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 //#region Historicos
@@ -11,8 +11,8 @@ function setDatosHistoricos(
   entity_id = null,
   selected_key = null
 ) {
-  return axios
-    .post(`${base_url}/api/data/historic/insert`, historial_data, {
+  return api
+    .post(`${base_url}/api/historic`, historial_data, {
       headers: {
         "Content-Type": "application/json",
       },
@@ -21,7 +21,7 @@ function setDatosHistoricos(
       if (actualizar_hist && entity_id && selected_key) {
         actualizar_hist(entity_id, selected_key);
       }
-      return response.data;
+      return response.data.data.historial;
     })
     .catch((error) => {
       console.error("Error sending historic data:", error);
@@ -30,10 +30,10 @@ function setDatosHistoricos(
 }
 
 function getHistorialEntity(entity_id) {
-  return axios
-    .get(`${base_url}/api/data/historic/ei/get/${entity_id}`)
+  return api
+    .get(`${base_url}/api/historic/entity/${entity_id}`)
     .then((response) => {
-      return response.data;
+      return response.data.data.historics;
     })
     .catch((error) => {
       console.error("Error fetching history:", error);
@@ -45,21 +45,20 @@ function getHistorialEntity(entity_id) {
 //#region widgets
 async function getDashboardWidgets(dashboard_id, client_id) {
   try {
-    const [historical_response, entities_response] = await axios.all([
-      axios.get(`${base_url}/api/data/historic/ci/get/${client_id}`),
-      axios.get(
-        `${base_url}/api/data/entitiesWidgets/${dashboard_id}/${client_id}`
+    const [historical_response, entities_response] = await Promise.all([
+      api.get(`${base_url}/api/historic/client/${client_id}`),
+      api.get(
+        `${base_url}/api/widget/${client_id}/${dashboard_id}`
       ),
     ])
 
-    const devices = entities_response.data
+    const devices = entities_response.data.data.widgets
       .map((data) => {
         try {
           const config = {
             ...JSON.parse(data.config_data),  // Propiedades de config_data
-            ...data.config        // Propiedades de config
           };
-          const entity_history  = historical_response.data.filter(
+          const entity_history  = historical_response.data.data.historics.filter(
             (historial) =>
               historial.entity_id === data.entity_id
           );
@@ -87,7 +86,7 @@ async function getDashboardWidgets(dashboard_id, client_id) {
 
     return {
       devices,
-      history: historical_response.data,
+      history: historical_response.data.data.historics,
     };
   } catch (error) {
     console.error("Error fetching data:", error);
@@ -96,11 +95,11 @@ async function getDashboardWidgets(dashboard_id, client_id) {
 }
 
 const setWidget = (new_widget, setDevicesList) => {
-  return axios
-    .post(`${base_url}/api/data/widgets/insert`, new_widget)
+  return api
+    .post(`${base_url}/api/widget`, new_widget)
     .then((response) => {
-      console.log("Widget creado:", response.data);
-      return response.data;
+      console.log("Widget creado:", response.data.data);
+      return response.data.data;
     })
     .catch((error) => {
       console.error("Error al crear el widget:", error);
@@ -111,16 +110,16 @@ const setWidget = (new_widget, setDevicesList) => {
 
 //#region entities
 function setDevice(device_data) {
-  return axios.post(`${base_url}/api/data/entities/insert`, device_data);
+  return api.post(`${base_url}/api/entity`, device_data);
 }
 
 function getDevice(setEntities, client_id) {
-  return axios
-    .get(`${base_url}/api/data/entities/get`, {
+  return api
+    .get(`${base_url}/api/entity`, {
       params: { client_id },
     })
     .then((response) => {
-      setEntities([...response.data]);
+      setEntities([...response.data.data]);
     });
 }
 

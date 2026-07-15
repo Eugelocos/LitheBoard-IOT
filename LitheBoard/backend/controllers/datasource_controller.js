@@ -23,7 +23,7 @@ class DatasourceController extends EventEmitter {
   initialize() {
     this.entities.forEach((entity) => {
       const { datasource_type, entity_id } = entity;
-      console.log("With Entity :", entity.entity_id)
+      //console.log("With Entity :", entity.entity_id)
       this.entityMap.set(entity_id, entity); // Mapeo para acceso rápido.
 
       switch (datasource_type) {
@@ -51,7 +51,7 @@ class DatasourceController extends EventEmitter {
     try {
 
 
-      console.log("-------<>---------")
+      //console.log("-------<>---------")
       const rulechain = await rulechainModel.getRulechainById(entity.rulechain_id);
       const rulechainCompiled = typeof rulechain.compiled === 'string'
       ? JSON.parse(rulechain.compiled)
@@ -139,7 +139,7 @@ class DatasourceController extends EventEmitter {
   async addOrUpdateEntity(entity) {
     if (this.entityMap.has(entity.entity_id)) {
       console.log(`Updating entity: ${entity.entity_id}`);
-      this.removeEntity(entity.entity_id); // Limpiar configuración previa.
+      this.removeEntity(entity.entity_id); 
     } else {
       console.log(`Adding new entity: ${entity.entity_id}`);
     }

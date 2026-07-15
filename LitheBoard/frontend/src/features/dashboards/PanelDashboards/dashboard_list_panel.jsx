@@ -10,9 +10,9 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import axios from "axios";
 import config from "@config";
 import { Tooltip, Fab } from "@mui/material";
+import api from "../../../services/api.js"
 
 function DashboardListPanel({
   dashboards,
@@ -27,26 +27,25 @@ function DashboardListPanel({
 
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
-  const handleDeleteDashboard = (dashboard_id) => {
-    fetch(`${base_url}/api/dashboards/delete/${dashboard_id}`, {
-      method: "DELETE",
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.message === "Dashboard y widgets eliminados correctamente") {
-          // Actualiza la lista de dashboards en el estado local
-          setDashboards((prev_dashboard) =>
-            prev_dashboard.filter(
-              (dashboard) => dashboard.dashboard_id !== dashboard_id
-            )
-          );
-        } else {
-          console.error("Error al eliminar el dashboard:", data.message);
-        }
-      })
-      .catch((error) => {
-        console.error("Error en la solicitud:", error);
-      });
+  const handleDeleteDashboard = async (dashboard_id) => {
+    try {
+      const { data } = await api.delete(`/api/dashboard/${dashboard_id}`);
+
+      if (data.message === "Dashboard y widgets eliminados correctamente") {
+        setDashboards((prevDashboard) =>
+          prevDashboard.filter(
+            (dashboard) => dashboard.dashboard_id !== dashboard_id
+          )
+        );
+      } else {
+        console.error("Error al eliminar el dashboard:", data.message);
+      }
+    } catch (error) {
+      console.error(
+        "Error en la solicitud:",
+        error.response?.data || error.message
+      );
+    }
   };
 
   const handleEditDashboard = (dashboard) => {
@@ -58,7 +57,7 @@ function DashboardListPanel({
 
   const handleSaveEdit = async () => {
     try {
-      await axios.put(`${base_url}/api/dashboards/update`, {
+      await api.put(`${base_url}/api/dashboard`, {
         dashboard_id: selected_dashboard.id,
         name: edited_name,
         description: edited_description,

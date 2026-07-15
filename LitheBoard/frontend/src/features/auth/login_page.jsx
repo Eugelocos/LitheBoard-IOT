@@ -48,53 +48,54 @@ function Login() {
     if (isSubmitting) return;
     setIsSubmitting(true);
     setStatus(1);
+
     try {
-      const response = await axios.post(`${base_url}/api/clients/login`, form_data);
-      console.log("user response, ", response)
+      const response = await axios.post(
+        `${base_url}/api/clients/login`,
+        form_data,
+      );
       setUserData(response.data.data.client);
       localStorage.setItem("user", JSON.stringify(response.data.data.client));
       localStorage.setItem("token", response.data.token);
+
       // Solicitar OTP
       await axios.post(`${base_url}/api/otp/request`, {
         email: form_data.email,
       });
+
       console.log("OTP enviado");
       setOtpRequested(true);
-      // Reiniciamos el status para la pantalla OTP
       setStatus(0);
     } catch (error) {
       console.error("Error en login:", error);
       setStatus(3);
-      setError(
-        error.response ? error.response.data.message : "Error desconocido"
-      );
+      setError(error.response?.data?.error || "Error desconocido");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleVerifyOtp = async (e) => {
-  e.preventDefault();
-  if (isSubmitting) return;
-  setIsSubmitting(true);
-  setStatus(1);
-  try {
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setStatus(1);
+    try {
       const response = await api.post("/api/otp/verify", {
         client_id: user_data.id,
         otp: otp,
       });
-    console.log("OTP:", otp)
-    setStatus(2);
-    setLoggedIn(true);
-  } catch (error) {
-    setStatus(3);
-    setError(
-      error.response ? error.response.data.message : "Unkwonwn error"
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      console.log("OTP:", otp);
+      setStatus(2);
+      setLoggedIn(true);
+    } catch (error) {
+      setStatus(3);
+      console.log(error)
+      setError(error.response ? error.response.data.message : "Unkwonwn error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (logged_in) {
     return <Navigate to="/dashboard" />;
@@ -158,8 +159,7 @@ function Login() {
                     sx={{ mt: 3 }}
                   >
                     <p className="text-sm text-[#5c5b5b] m-auto my-[15px]">
-                    A code was sent to your email. It will expire in 5
-                    minutes
+                      A code was sent to your email. It will expire in 5 minutes
                     </p>
                     <p className="text-[#6b7280] text-lg text-start mt-3 mb-2">
                       Email Code
@@ -211,7 +211,7 @@ function Login() {
               <div className="w-[392px] max-h-[500px] h-full rounded-[10px] bg-[#232939] relative border border-[#232939e0] overflow-hidden">
                 <div className="flex flex-col gap-[0.375rem] p-6 text-center pt-4 pb-4 rounded-t-[1.5rem]">
                   <div className="m-auto inline-flex items-center whitespace-nowrap rounded-full border border-transparent px-2 py-[0.125rem] text-sm font-semibold bg-[#bfdbfe] text-[#232939c7]">
-                  Welcome Back
+                    Welcome Back
                   </div>
                   <Typography
                     sx={{

@@ -1,5 +1,4 @@
 import React, { useState, useEffect} from "react";
-import axios from "axios";
 import {
   FormControl,
   InputLabel,
@@ -16,6 +15,7 @@ import {
 import widgetFieldsConfig from "./widget_forms_config";
 import { HexColorPicker } from "react-colorful";
 import CodeMirror from "@uiw/react-codemirror";
+
 
 function WidgetForm(props) {
   const { setDevicesList, entities, dashboard_id, widget_type, user, onHasScriptFields} = props;
@@ -86,7 +86,7 @@ function WidgetForm(props) {
 
       setWidget(new_widget)
         .then((response) => {
-          console.log("Widget creado:", response.data);
+          console.log("Widget creado:", response.data.data);
 
           return getDashboardWidgets(dashboard_id, user.id);
         })

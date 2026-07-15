@@ -56,7 +56,7 @@ console.log("Contraseña recibida:", form_data.password.trim());
       };
 
       const response = await axios.post(
-        `${base_url}/api/register`,
+        `${base_url}/api/clients/register`,
         form_data_with_hashed_password
       );
       console.log("Server response:", response.data);

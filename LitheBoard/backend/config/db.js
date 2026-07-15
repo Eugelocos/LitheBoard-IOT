@@ -31,14 +31,17 @@ const {
 } = require('./index');
 
 const pool = mysql.createPool({
-  host: dbHost,            
-  port: dbPort,          
-  user: dbUser,            
-  password: dbPassword,    
+  host: dbHost,
+  port: dbPort,
+  user: dbUser,
+  password: dbPassword,
   database: dbName,
-  waitForConnections: true, 
-  connectionLimit: 10,    
-  queueLimit: 0         
+
+  connectTimeout: 5000,
+
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
 
 module.exports = pool;

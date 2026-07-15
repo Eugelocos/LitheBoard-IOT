@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { DataGrid } from "@mui/x-data-grid";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -23,6 +22,8 @@ import {
   Tooltip, Fab
 } from "@mui/material";
 import config from "@config";
+import api from "../../services/api"
+
 function ClientList({
   client_id,
   dashboards,
@@ -44,17 +45,17 @@ function ClientList({
 
   useEffect(() => {
     // Fetch associated client IDs from the backend
-    axios
-      .get(`${base_url}/api/asociatedClients-Admins/${client_id}`)
+    api
+      .get(`${base_url}/api/clients/admins/${client_id}/clients`)
       .then((response) => {
-        const associated_client_ids = response.data;
+        const associated_client_ids = response.data.data;
         // Fetch details of each associated client
-        return axios.get(
-          `${base_url}/api/clients_id-client/${associated_client_ids.join(",")}`
+        return api.get(
+          `${base_url}/api/clients/${associated_client_ids.join(",")}`
         );
       })
       .then((response) => {
-        setClientsAsociated(response.data);
+        setClientsAsociated(response.data.data);
       })
       .catch((error) => {
         console.error("Error fetching associated clients:", error);
@@ -83,9 +84,9 @@ function ClientList({
       };
 
 
-      const response = await axios.put(`${base_url}/api/user/update`, payload);
+      const response = await api.put(`${base_url}/api/clients`, payload);
 
-      if (response.data.message) {
+      if (response.data.data.message) {
         // Actualiza la lista de clientes
         setClientsAsociated((prev) =>
           prev.map((client) =>
@@ -103,10 +104,11 @@ function ClientList({
     }
   };
 
+  // FALTA IMPLEMENTAR EN BACKEND
   const handleDeleteClient = async (clientId) => {
     if (window.confirm("¿Estás seguro de eliminar este cliente?")) {
       try {
-        await axios.delete(`${base_url}/api/clients/${clientId}`);
+        await api.delete(`${base_url}/api/clients/${clientId}`);
 
         setClientsAsociated((prev) =>
           prev.filter((client) => client.client_id !== clientId)
@@ -149,13 +151,13 @@ function ClientList({
 
   const handleAssignDashboard = async () => {
     if (selected_dashboard_id && selected_client_id) {
-      axios
-        .post(`${base_url}/api/assign-dashboard`, {
+      api
+        .post(`${base_url}/api/dashboard/assign`, {
           client_id: selected_client_id,
           dashboardId: selected_dashboard_id,
         })
         .then((response) => {
-          alert(response.data.message);
+          alert(response.data.data.message);
 
           handleCloseDialog();
         })
@@ -164,10 +166,10 @@ function ClientList({
           alert("Failed to assign dashboard");
         });
     }
-    const dashboards_response = await axios.get(
-      `${base_url}/api/data/dashboards/${client_id}`
+    const dashboards_response = await api.get(
+      `${base_url}/api/dashboard/${client_id}`
     );
-    setDashboards(dashboards_response.data);
+    setDashboards(dashboards_response.data.data.d);
   };
 
   const columns = [
