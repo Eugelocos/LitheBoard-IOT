@@ -28,35 +28,18 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editBoardOpen, setEditBoardOpen] = useState(false);
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
+  
+  const handleEditClick = ({ rulechain_id }) => {
+    const rulechain = rulechains.find(
+      (r) => r.rulechain_id === rulechain_id
+    );
 
-  // Fetch rulechains
-  useEffect(() => {
-    if (!user?.id) return;
-    (async () => {
-      try {
-        const { data } = await api.get(
-          `${base_url}/api/rulechain`,
-          { params: { client_id: user.id } }
-        );
-        setRulechains(data);
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-  }, [user, base_url, setRulechains]);
+    if (!rulechain) return;
 
-  const handleEditClick = async ({ rulechain_id }) => {
-    try {
-      const { data } = await api.get(
-        `${base_url}/api/rulechain/${rulechain_id}`
-      );
-      setSelectedRulechain(data);
-      setEditedName(data.name);
-      setEditedDescription(data.description || "");
-      setDrawerOpen(true);
-    } catch (err) {
-      console.error(err);
-    }
+    setSelectedRulechain(rulechain);
+    setEditedName(rulechain.name);
+    setEditedDescription(rulechain.description ?? "");
+    setDrawerOpen(true);
   };
 
   const handleSaveEdit = async () => {

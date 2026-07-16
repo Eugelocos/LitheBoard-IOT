@@ -35,7 +35,7 @@ router.get('/', protect, widgetController.getWidgets);
 router.post(
   '/',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(createWidgetSchema),
   widgetController.insertWidget
 );
@@ -44,7 +44,7 @@ router.post(
 router.put(
   '/:widget_id',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(updateWidgetSchema),
   widgetController.updateWidget
 );

@@ -38,8 +38,7 @@ function TopMenu({
   all_notifications,
   setAllNotifications,
   unseen_notifications,
-  setUnseenNotifications,
-  fetchNotifications,
+  setUnseenNotifications
 }) {
   const navigate = useNavigate();
   const [user_panel_open, setUserPanelOpen] = useState(false);
@@ -99,11 +98,7 @@ function TopMenu({
     setExpanded(!expanded);
   };
 
-  useEffect(() => {
-    if (user && alarms.length > 0) {
-      fetchNotifications();
-    }
-  }, [user, alarms]);
+
 
   const handleMarkAsRead = (notification_id) => {
     api

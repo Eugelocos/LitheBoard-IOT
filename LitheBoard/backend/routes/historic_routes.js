@@ -30,7 +30,7 @@ router.get(
 router.post(
   '/',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(createHistoricSchema),
   historicController.insertHistoric
 );

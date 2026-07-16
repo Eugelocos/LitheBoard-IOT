@@ -42,7 +42,7 @@ router.get(
 router.put(
   '/',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(updateEntitySchema),
   entityController.updateEntity
 );
@@ -60,7 +60,7 @@ router.delete(
 router.patch(
   '/:entity_id/rulechain',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(updateEntityRulechainSchema),
   entityController.updateEntityRulechain
 );

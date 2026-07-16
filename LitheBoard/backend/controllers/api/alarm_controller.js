@@ -24,7 +24,10 @@ exports.getAlarmsByClientId = async (req, res, next) => {
     }
 
     // Si todo ok, enviamos la lista de alarmas
-    return res.status(200).json(alarms);
+    return res.status(200).json({
+      status: 'success',
+      data: { alarms }
+    });
   } catch (err) {
     // Enviamos el error al handler global
     return next(new AppError(err.message, 500));

@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import "../../../app/app.jsx";
 import Content from "./Widget/WidgetForm/widgets_form_selection.jsx";
-import Disps from "../../entities/disp.jsx";
 import DeviceList from "./Widget/dashboard_widget_list.jsx";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -91,7 +90,6 @@ function Dashboard(props) {
         .then((response) => {
           console.log("Widget actualizado:", response.data.data);
 
-          // Opcional: Obtener nuevamente los widgets del dashboard
           window.location.reload();
           return getDashboardWidgets(dashboard_id, user.client_id);
         })
@@ -208,25 +206,28 @@ function Dashboard(props) {
   }
 
 
-  // HORROR ERROR ARREGLAR LUEGO CON BACKEND SE MANEJA POR DIOOOOSSSS
-  const publishMessage = (pubTopic, message) => {
-    const client = mqtt.connect("ws://broker.emqx.io:8083/mqtt");
-    client.on("connect", () => {
-      client.publish(pubTopic, message, (err) => {
-        if (err) {
-          console.error(`Error al publicar en ${pubTopic}: ${err}`);
-        } else {
-          console.log(`Publicado en ${pubTopic}`);
+  const publishMessage = (entity, message) => {
+    try {
+      const response = api.post(
+        `${base_url}/api/mqtt/publish`, 
+        {
+          'entity' : entity,
+          'message' : message
         }
-        client.end();
-      });
-    });
+      )  
+      if (response.status == 'success') {
+        console.log('Successfully published')
+      } 
+    } catch (err) {
+      console.error("Error publishing message:", err);
+    }
   };
-  function toggleSwitchState(device) {
-    var estadoActual = device.config?.estadoActual;
+
+  function toggleSwitchState(entity) {
+    var estadoActual = entity.config?.estadoActual;
     const valorSeguro = estadoActual !== undefined ? estadoActual : true;
-    device.config.estadoActual = !valorSeguro;
-    publishMessage(device.config?.pub_topic, JSON.stringify(valorSeguro));
+    entity.config.estadoActual = !valorSeguro;
+    publishMessage(entity, JSON.stringify(valorSeguro));
     setDevicesList([...devices_list]);
   }
 
@@ -285,7 +286,7 @@ function Dashboard(props) {
             setEditedWidgetId={setEditedWidgetId}
             setEditedWidgetType={setEditedWidgetType}
           />
-          <Disps />
+
         </div>
       </div>
 

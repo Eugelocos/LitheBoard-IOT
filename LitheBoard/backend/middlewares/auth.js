@@ -6,6 +6,15 @@ const { jwtSecret, jwtExpiresIn } = require('../config');
 const clientService = require('../services/client_service'); // <-- usamos client_service en lugar de user_model
 const bcrypt = require('bcryptjs'); // Solo si lo necesitas para comparar contraseñas en otro punto
 
+
+const roles = {
+  1 : "admin", 
+  2 : "client",
+  // ..
+}
+
+
+
 /**
  * Middleware para proteger rutas: verifica que exista un token JWT válido.
  * - Se espera que el token venga en el header "Authorization: Bearer <token>".
@@ -59,13 +68,7 @@ exports.protect = async (req, res, next) => {
       }
     }
 
-    const roles = {
 
-      1 : "admin", 
-      2 : "client",
-      // ...
-
-    }
     // 5) Si todo ok, se adjuntan los datos mínimos del cliente en req.user
     req.user = {
       id: clientRecord.id,
@@ -107,18 +110,18 @@ exports.restrictTo = (...rolesPermitidos) => {
  * - res: objeto response de Express.
  */
 exports.createSendToken = (client, statusCode, res) => {
-  // 1) Crear el payload mínimo (id y role)
-  const role = client.admin_id!=null ? "client" : "admin";
+  // Payload
+  const role =  roles[client.access_level_id]
 
   const payload = { id: client.client_id, role: role };
 
-  // 2) Firmar el token con el secreto y establecer expiración
+  // Firmar el token con el secreto y establecer expiración
   const token = jwt.sign(payload, jwtSecret, {
     expiresIn: jwtExpiresIn,
   });
 
   
-  // 3) Enviar JSON con token y datos mínimos del cliente
+  // Enviar JSON con token y datos mínimos del cliente
   res.status(statusCode).json({
     status: 'success',
     token,

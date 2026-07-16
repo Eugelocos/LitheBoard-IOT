@@ -62,7 +62,7 @@ router.get(
 router.get(
   '/:clients_ids',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(getClientsByIdsSchema, 'params'),
   clientController.getClientsByIds
 );

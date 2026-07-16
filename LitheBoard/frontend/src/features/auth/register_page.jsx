@@ -50,14 +50,11 @@ function Register() {
       console.log("Email recibido:", form_data.email.trim());
 console.log("Contraseña recibida:", form_data.password.trim());
       const hashed_password = await bcrypt.hash(form_data.password.trim(), 10);
-      const form_data_with_hashed_password = {
-        ...form_data,
-        password: hashed_password,
-      };
+
 
       const response = await axios.post(
         `${base_url}/api/clients/register`,
-        form_data_with_hashed_password
+        form_data
       );
       console.log("Server response:", response.data);
       setRegistered(true);

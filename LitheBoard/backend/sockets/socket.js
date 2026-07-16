@@ -1,6 +1,10 @@
 // /sockets/socket.js
 const { Server } = require("socket.io");
 
+
+
+// Falta mejorar la privacidaad con rooms y validacion de tokens
+
 /* This code snippet is a module that exports a function. When this function is called with a `server`
 parameter, it creates a new instance of a Socket.IO server using the `Server` class. The server is
 configured with CORS settings to allow requests from a specific origin,

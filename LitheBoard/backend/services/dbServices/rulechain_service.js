@@ -21,9 +21,9 @@ exports.fetchByClientId = async (clientId) => {
   const [rows] = await db.query(query, [clientId]);
   return rows.map((row) => ({
     ...row,
-    rulechain: JSON.parse(row.rulechain),
-    entities_ids: JSON.parse(row.entities_ids),
-    compiled: row.compiled ? JSON.parse(row.compiled) : null,
+    rulechain: row.rulechain,
+    entities_ids: row.entities_ids,
+    compiled: row.compiled,
   }));
 };
 

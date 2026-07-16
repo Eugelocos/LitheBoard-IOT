@@ -13,6 +13,7 @@ exports.getRulechains = async (req, res, next) => {
     // Se asume validateSchema(getRulechainsSchema, 'query') antes de este controlador
 
     const rulechains = await RulechainService.fetchByClientId(client_id);
+
     return res.status(200).json({
       status: 'success',
       results: rulechains.length,

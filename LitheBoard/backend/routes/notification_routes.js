@@ -22,7 +22,7 @@ router.get(
 router.post(
   '/',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(createNotificationSchema),
   notificationController.insertNotification
 );

@@ -16,7 +16,7 @@ const {
 router.post(
   '/',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(createDashboardSchema),
   dashboardController.insertDashboard
 );
@@ -33,7 +33,7 @@ router.get(
 router.put(
   '/',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(updateDashboardSchema),
   dashboardController.updateDashboard
 );

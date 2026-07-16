@@ -8,6 +8,10 @@ let mqttClient = null;
 const entityMap = new Map();
 const heartbeatTimers = new Map();
 
+function getEntity(client_id, entity_id) {
+  return entityMap.get(`${client_id}:${entity_id}`);
+}
+
 function initialize(entity, eventEmitter) {
   const key = `${entity.client_id}:${entity.entity_id}`;
   entityMap.set(key, entity);
@@ -220,7 +224,7 @@ function handleDeviceHeartbeat(entity, data) {
 //#endregion
 
 //#region Publish
-async function publishMessage(entity, massage) {
+async function publishMessage(entity, message) {
   try {
     console.log(`enbity`, entity);
     const topic = `users/${entity.client_id}/device/${entity.entity_id}/data/${entity.datasource_config.pub_topic}`;
@@ -246,7 +250,7 @@ async function publishToTopic(entity, topic, message, qos = 0) {
 }
 
 //#endregion
-module.exports = { initialize, publishMessage, publishToTopic };
+module.exports = { initialize, publishMessage, publishToTopic, getEntity};
 
 /*
 subscription:

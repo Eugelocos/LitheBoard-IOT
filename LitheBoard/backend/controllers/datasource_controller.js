@@ -9,6 +9,10 @@ const rulechainModel = require('../models/rulechain_model')
 const eventBus = require('./../services/event_bus');
 const wsHelper = require('../sockets/ws_helper')
 
+
+
+// Hacer que el rulechain engine no sea un singleton
+
 class DatasourceController extends EventEmitter {
   constructor(entities) {
     super();
@@ -83,9 +87,9 @@ class DatasourceController extends EventEmitter {
           const conditionMet = this.checkAlarmCondition(alarm, data);
           if (conditionMet) {
             await alarmModel.saveAlarmNotification(
-              alarm[0].alarm_id,
+              alarm.alarm_id,
               entity.client_id,
-              parseInt(data[alarm[0].selected_key])
+              parseInt(data[alarm.selected_key])
             );
             console.log(
               `Alarm notification registered for ${entity.entity_id}`
@@ -107,18 +111,18 @@ class DatasourceController extends EventEmitter {
 
   checkAlarmCondition(alarm, messageData) {
     try {
-      const value = parseFloat(messageData[alarm[0].selected_key]);
-      const threshold = parseFloat(alarm[0].valor);
+      const value = parseFloat(messageData[alarm.selected_key]);
+      const threshold = parseFloat(alarm.valor);
 
       if (isNaN(value) || isNaN(threshold)) {
         console.error("Invalid value or threshold.");
         return false;
       }
 
-      if (alarm[0].alarm_condition === ">" && value > threshold) {
+      if (alarm.alarm_condition === ">" && value > threshold) {
         console.log("Alarm condition met: Greater than threshold.");
         return true;
-      } else if (alarm[0].alarm_condition === "<" && value < threshold) {
+      } else if (alarm.alarm_condition === "<" && value < threshold) {
         console.log("Alarm condition met: Less than threshold.");
         return true;
       }

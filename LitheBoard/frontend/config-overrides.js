@@ -2,7 +2,7 @@ const webpack = require("webpack")
 const path = require('path');
 
 module.exports = function override(config, env) {
-    //do stuff with the webpack config...
+    
     config.resolve.fallback = {
         ...config.resolve.fallback,
         stream: require.resolve("stream-browserify"),

@@ -169,7 +169,7 @@ function ClientList({
     const dashboards_response = await api.get(
       `${base_url}/api/dashboard/${client_id}`
     );
-    setDashboards(dashboards_response.data.data.d);
+    setDashboards(dashboards_response.data.data.dashboards);
   };
 
   const columns = [

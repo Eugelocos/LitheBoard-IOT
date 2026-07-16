@@ -39,8 +39,8 @@ async function getLastHistoricByEntityId(entity_id) {
     const query = "SELECT * FROM historial WHERE entity_id = ? ORDER BY date DESC LIMIT 1";
 
     try {
-        const result = await db.query(query, [entity_id]);
-        return result;
+        const [rows] = await db.query(query, [entity_id]);
+        return (rows);
     } catch (error) {
         console.error('Getting historic error:', error);
         throw error;

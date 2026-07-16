@@ -77,8 +77,8 @@ function DeviceList(props) {
 
       const { data } = await api.delete(`/api/entity/${entity.id}`);
 
-      if (data.message === "Entity deleted successfully") {
-        setEntities((prev) => prev.filter((d) => d.id !== entity.id));
+      if (data.status === "success") {
+        setEntities((prev) => prev.filter((d) => d.id !== entity.entity_id));
       }
     } catch (error) {
       console.error(

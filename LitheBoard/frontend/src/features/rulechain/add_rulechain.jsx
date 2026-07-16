@@ -12,6 +12,9 @@ import StatusBadge from "../../component/status_badge";
 import config from "@config";
 import api from "../../services/api"
 
+
+const defaultNode = {"id": "1784176385630", "data": {"color": "#2196F3", "label": "Input", "config": {}, "fields": [], "handles": {"outputs": ["right"]}}, "type": "input", "measured": {"width": 150, "height": 40}, "position": {"x": 153.56836551686078, "y": 281.2903338737692}}
+
 function AddRulechain({ onAddRulechain, showRulechainList, setRulechains, user }) {
   const nameRef = useRef();
   const descRef = useRef();
@@ -32,7 +35,7 @@ function AddRulechain({ onAddRulechain, showRulechainList, setRulechains, user }
       user_id: user.id,
       name,
       description: description || null,
-      rulechain: { nodes: [], edges: [] },
+      rulechain: { nodes: [defaultNode], edges: [] },
       entities_ids: []
     };
 

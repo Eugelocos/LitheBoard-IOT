@@ -12,19 +12,9 @@ import {
 import config from "@config";
 import api from "../../services/api"
 
-function AlarmList({ client_id, alarms, setAlarms, entities }) {
+function AlarmList({ user, alarms, setAlarms, entities }) {
   const [isAddAlarmVisible, setIsAddAlarmVisible] = useState(false);
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
-  useEffect(() => {
-    api
-      .get(`${base_url}/api/alarms/${client_id}`)
-      .then((response) => {
-        setAlarms(response.data.data);
-      })
-      .catch((error) => {
-        console.error("Error fetching alarms:", error);
-      });
-  }, [client_id]);
 
   const handleAddAlarm = () => {
     setIsAddAlarmVisible(true);
@@ -38,9 +28,11 @@ function AlarmList({ client_id, alarms, setAlarms, entities }) {
 
   const handleSaveAlarm = (newAlarm) => {
     api
-      .get(`${base_url}/api/alarms/${client_id}`)
+      .get(`${base_url}/api/alarm/${user.id}`)
       .then((response) => {
-        setAlarms(response.data.data);
+        setAlarms(response.data.data.alarm);
+
+
       })
       .catch((error) => {
         console.error("Error fetching alarms:", error);
@@ -106,7 +98,7 @@ function AlarmList({ client_id, alarms, setAlarms, entities }) {
   if (isAddAlarmVisible) {
     return (
       <AddAlarm
-        client_id={client_id}
+        client_id={user.id}
         entities={entities}
         onCancel={cancelAdd}
         onSave={handleSaveAlarm}

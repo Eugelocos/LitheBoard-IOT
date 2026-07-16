@@ -48,113 +48,94 @@ function DashboardPanel() {
 
   const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
   useEffect(() => {
-    const storedUserJSON = localStorage.getItem("user");
-    if (!storedUserJSON) {
-      navigate("/login");
-      return;
-    }
+    const initialize = async () => {
+      const storedUserJSON = localStorage.getItem("user");
 
-    let parsedUser;
-    try {
-      parsedUser = JSON.parse(storedUserJSON);
-    } catch (err) {
-      console.error("Error parseando usuario de localStorage:", err);
-      navigate("/login");
-      return;
-    }
+      if (!storedUserJSON) {
+        navigate("/login");
+        return;
+      }
 
+      let parsedUser;
 
-    setUser(parsedUser);
-
-    const fetchData = async () => {
       try {
-        console.log(localStorage.getItem("token"));
-        const devicesResponse = await api.get(`/api/entity`, {
-          params: { client_id: parsedUser.id },
-        });
-        console.log("devicecs:", devicesResponse)
-        setEntities(devicesResponse.data.data.entities);
+        parsedUser = JSON.parse(storedUserJSON);
+      } catch (err) {
+        console.error("Error parseando usuario:", err);
+        navigate("/login");
+        return;
+      }
 
-        const dashboardsResponse = await api.get(
-          `/api/dashboard/${parsedUser.id}`
+      setLoading(true);
+      setUser(parsedUser);
+
+      try {
+        // Carga inicial en paralelo
+        const [
+          entitiesResponse,
+          dashboardsResponse,
+          alarmsResponse,
+          rulechainsResponse,
+        ] = await Promise.all([
+          api.get(`${base_url}/api/entity`, {
+            params: { client_id: parsedUser.id },
+          }),
+          api.get(`${base_url}/api/dashboard/${parsedUser.id}`),
+          api.get(`${base_url}/api/alarm/${parsedUser.id}`),
+          api.get(`${base_url}/api/rulechain`, {
+            params: { client_id: parsedUser.id },
+          }),
+        ]);
+        console.log("hola.", alarmsResponse)
+        const entities = entitiesResponse.data.data.entities;
+        const dashboards = dashboardsResponse.data.data.dashboards;
+        const alarms = alarmsResponse.data.data.alarms;
+        const rulechains = rulechainsResponse.data.data.rulechains;
+
+        setEntities(entities);
+        setDashboards(dashboards);
+        setAlarms(alarms);
+        setRulechains(rulechains);
+
+        // Notificaciones (dependen de las alarmas)
+        const notificationsResponse = await api.get(
+          `${base_url}/api/notification/${parsedUser.id}`
         );
-        console.log("dashboard:", dashboardsResponse)
-        setDashboards(dashboardsResponse.data.data.dashboards);
 
+        const notifications = notificationsResponse.data.data.notifications;
 
-        setLoading(false);
+        const notificationsWithDetails = notifications.map((notification) => {
+          const alarm =
+            alarms.find((a) => a.alarm_id === notification.alarm_id) || {};
+
+          return {
+            ...notification,
+            alarm_value: alarm.valor || "Desconocido",
+            alarm_key: alarm.selected_key || "Desconocido",
+            device_name: alarm.disp_name || "Desconocido",
+          };
+        });
+
+        setAllNotifications(notificationsWithDetails);
+        setUnseenNotifications(
+          notificationsWithDetails.filter((n) => n.visto === 0)
+        );
+
       } catch (error) {
-        console.error("Error al obtener datos iniciales:", error);
-        setLoading(false);
+        console.error("Error inicializando MainPanel:", error);
 
-        if (error.response && error.response.status === 401) {
+        if (error.response?.status === 401) {
           navigate("/login");
         }
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchData();
-  }, [base_url, navigate]);
+    initialize();
+  }, [navigate, base_url]);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    const fetchData = async () => {
-      api
-        .get(`/api/alarm/${user?.id}`)
-        .then((response) => {
-          setAlarms(response.data.data);
-        })
-        .catch((error) => {
-          console.error("Error fetching alarms:", error);
-        });
-    };
-    fetchData();
-  }, [user, base_url]);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    const fetchData = async () => {
-      try {
-        const response = await api.get(
-          `/api/rulechain/`,
-          { params: { client_id: user.id } }
-        );
-        setRulechains(response.data.data);
-      } catch (error) {
-        console.error("Error fetching rulechains:", error);
-      }
-    };
-    fetchData();
-  }, [user, base_url]);
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await api.get(
-        `${base_url}/api/notification/${user.id}`
-      );
-      const notifications = response.data.data;
-
-      const notificationsWithDetails = notifications.map((notification) => {
-        const alarm =
-          alarms.find((alarm) => alarm.alarm_id === notification.alarm_id) ||
-          {};
-        return {
-          ...notification,
-          alarm_value: alarm.valor || "Desconocido",
-          alarm_key: alarm.selected_key || "Desconocido",
-          device_name: alarm.disp_name || "Desconocido",
-        };
-      });
-
-      setAllNotifications(notificationsWithDetails);
-      const unseen = notificationsWithDetails.filter(
-        (notification) => notification.visto === 0
-      );
-      setUnseenNotifications(unseen);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    }
-  };
 
   const handleAddDevice = (new_device) => {
     setEntities([...entities, new_device]);
@@ -175,7 +156,7 @@ function DashboardPanel() {
       const updatedDashboards = await api.get(
         `${base_url}/api/dashboard/${user.id}`
       );
-      setDashboards(updatedDashboards.data);
+      setDashboards(updatedDashboards.data.data.dashboards);
     } catch (error) {
       console.error("Error saving dashboard:", error);
     }
@@ -251,7 +232,6 @@ function DashboardPanel() {
         setAllNotifications={setAllNotifications}
         unseen_notifications={unseen_notifications}
         setUnseenNotifications={setUnseenNotifications}
-        fetchNotifications={fetchNotifications}
       ></TopMenu>
       {
         //#region lateral menu
@@ -334,8 +314,6 @@ function DashboardPanel() {
                   dashboard_id={dashboard.dashboard_id}
                   user={user}
                   alarms={alarms}
-                  setUnseenNotifications={setUnseenNotifications}
-                  fetchNotifications={fetchNotifications}
                   client_alert={client_alert}
                   setClientAlert={setClientAlert}
                   indexDashboard={index}
@@ -372,7 +350,7 @@ function DashboardPanel() {
             style={{ display: "none" }}
           >
             <AlarmList
-              client_id={user?.id}
+              user={user}
               alarms={alarms}
               setAlarms={setAlarms}
               entities={entities}

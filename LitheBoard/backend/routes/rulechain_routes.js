@@ -32,7 +32,7 @@ router.get(
 router.post(
   '/',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(createRulechainSchema),
   rulechainController.insertRulechain
 );
@@ -41,7 +41,7 @@ router.post(
 router.put(
   '/',
   protect,
-  restrictTo('admin', 'manager'),
+  restrictTo('admin'),
   validateSchema(updateRulechainSchema),
   rulechainController.updateRulechain
 );
