@@ -5,7 +5,7 @@ exports.createDashboardSchema = Joi.object({
   name: Joi.string().max(100).required(),
   description: Joi.string().max(255).required(),
   client_id: Joi.number().integer().required(),
-  additional_client_ids: Joi.array().items(Joi.number().integer()).default([]),
+  shared_client_ids: Joi.array().items(Joi.number().integer()).default([]),
 });
 
 exports.getDashboardsSchema = Joi.object({
@@ -16,7 +16,7 @@ exports.updateDashboardSchema = Joi.object({
   dashboard_id: Joi.number().integer().required(),
   name: Joi.string().max(100).required(),
   description: Joi.string().max(255).required(),
-  additional_client_ids: Joi.array().items(Joi.number().integer()).default([]),
+  shared_client_ids: Joi.array().items(Joi.number().integer()).default([]),
 });
 
 exports.deleteDashboardSchema = Joi.object({
@@ -24,6 +24,9 @@ exports.deleteDashboardSchema = Joi.object({
 });
 
 exports.assignDashboardSchema = Joi.object({
-  clientId: Joi.number().integer().required(),
-  dashboardId: Joi.number().integer().required(),
+  client_id: Joi.number().integer().required(),
+  dashboard_id: Joi.number().integer().required(),
 });
+
+// Resource schema metadata.
+for (const name of Object.keys(exports)) exports[name] = exports[name].meta({ resource: 'dashboard' });

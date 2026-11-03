@@ -1,5 +1,5 @@
+import { createDashboard } from "../../../services/dashboards_service";
 import React, { useState } from "react";
-import api from "../../../services/api.js"
 
 function CreateDashboardForm({ dashboards, setDashboards }) {
   const [name, setName] = useState("");
@@ -9,12 +9,11 @@ function CreateDashboardForm({ dashboards, setDashboards }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("/api/dashboard", {
+      const new_dashboard = await createDashboard({
         name,
         description,
-        client_id: user.id,
+        client_id: user.client_id,
       });
-      const new_dashboard = response.data.data;
       setDashboards([...dashboards, new_dashboard]);
       setName("");
       setDescription("");

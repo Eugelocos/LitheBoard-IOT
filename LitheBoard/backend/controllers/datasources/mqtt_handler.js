@@ -1,6 +1,6 @@
 const mqtt = require("mqtt");
 require("dotenv").config();
-const { getLastHistoricByEntityId } = require("../../models/historial_model");
+const { getLastHistoricByEntityId } = require("../../models/historic_model");
 const { updateEntityStatus } = require("../../models/entity_model");
 const { emitEntityStateChange } = require("../../sockets/ws_helper");
 
@@ -49,6 +49,22 @@ function initialize(entity, eventEmitter) {
   subscribeToTopics(entity);
   handleReconnection(entity);
   startHeartbeatTimer(entity);
+}
+
+function stop(entity) {
+  const key = `${entity.client_id}:${entity.entity_id}`;
+  clearTimeout(heartbeatTimers.get(key));
+  heartbeatTimers.delete(key);
+  entityMap.delete(key);
+  if (mqttClient) {
+    const base = `users/${entity.client_id}/device/${entity.entity_id}`;
+    const config = entity.datasource_config;
+    mqttClient.unsubscribe([
+      `${base}/data/${config.sub_topic}`,
+      `${base}/${config.request_topic || 'requests'}/${config.sub_topic}`,
+      `${base}/${config.heartbeat_topic || 'heartbeat'}/${config.sub_topic}`,
+    ]);
+  }
 }
 
 function subscribeToTopics(entity) {
@@ -147,13 +163,13 @@ function handleIncomingMessage(topic, message, eventEmitter) {
       return;
     }
 
-    if (entity.datasource_config.status !== "active") {
-      entity.datasource_config.status = "active";
+    if (entity.connection_status !== "online") {
+      entity.connection_status = "online";
       console.log(`Entity ${entity.entity_id} marked active on any message.`);
-      updateEntityStatus(entity.client_id, entity.entity_id, "active");
+      updateEntityStatus(entity.client_id, entity.entity_id, "online");
       emitEntityStateChange({
         entity_id: entity.entity_id,
-        status: "active",
+        connection_status: "online",
       });
     }
 
@@ -179,7 +195,7 @@ function handleIncomingMessage(topic, message, eventEmitter) {
 
 function handleDeviceStateUpdate(entity, data, eventEmitter) {
   console.log(`State update from device ${entity.entity_id}:`, data);
-  eventEmitter.emit("datasourceEvent", { entity, data, source: "MQTT" });
+  eventEmitter.emit("datasourceEvent", { entity, data, source: "mqtt" });
 }
 
 function handleDeviceStateRequest(entity) {
@@ -191,16 +207,16 @@ function handleDeviceStateRequest(entity) {
 //#region Heartbeats
 function startHeartbeatTimer(entity) {
   const key = `${entity.client_id}:${entity.entity_id}`;
-  const timeout = entity.datasource_config.heartbeat_timeout || 60000;
+  const timeout = (entity.datasource_config.heartbeat_timeout_s ?? 60) * 1000;
   if (heartbeatTimers.has(key)) clearTimeout(heartbeatTimers.get(key));
   const timer = setTimeout(async () => {
-    entity.datasource_config.status = "inactive";
+    entity.connection_status = "offline";
 
     console.log(`Heartbeat timeout for ${key}. Marking inactive.`);
-    await updateEntityStatus(entity.client_id, entity.entity_id, "inactive");
+    await updateEntityStatus(entity.client_id, entity.entity_id, "offline");
     emitEntityStateChange({
       entity_id: entity.entity_id,
-      status: "inactive",
+      connection_status: "offline",
     });
   }, timeout);
 
@@ -209,13 +225,13 @@ function startHeartbeatTimer(entity) {
 
 function handleDeviceHeartbeat(entity, data) {
   console.log(`Heartbeat from device ${entity.entity_id}:`, data);
-  if (entity.datasource_config.status === "inactive") {
-    entity.datasource_config.status = "active";
+  if (entity.connection_status === "offline") {
+    entity.connection_status = "online";
     console.log(`Entity ${entity.entity_id} is now active.`);
-    updateEntityStatus(entity.client_id, entity.entity_id, "active");
+    updateEntityStatus(entity.client_id, entity.entity_id, "online");
     emitEntityStateChange({
       entity_id: entity.entity_id,
-      status: "active",
+      connection_status: "online",
     });
   }
   startHeartbeatTimer(entity);
@@ -250,7 +266,7 @@ async function publishToTopic(entity, topic, message, qos = 0) {
 }
 
 //#endregion
-module.exports = { initialize, publishMessage, publishToTopic, getEntity};
+module.exports = { initialize, publishMessage, publishToTopic, getEntity, stop};
 
 /*
 subscription:

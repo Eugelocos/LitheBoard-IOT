@@ -2,6 +2,10 @@
 
 const AppError = require('../../utils/app_error');
 const EntityService = require('../../services/entity_service');
+const { assertOwnership } = require('../../utils/authorization');
+const { sendSuccess, sendCollection, sendNoContent } = require('../../utils/response');
+
+const entityNotFound = () => new AppError('Entidad no encontrada', 404, 'ENTITY_NOT_FOUND');
 
 /**
  * GET /api/entity?client_id=<id>
@@ -10,16 +14,11 @@ const EntityService = require('../../services/entity_service');
 exports.getEntities = async (req, res, next) => {
   try {
     const { client_id } = req.query;
-    // Se asume validateSchema(getEntitiesSchema, 'query') antes de este controlador
 
-    // Llamamos al service para obtener entidades
+    assertOwnership(req.user, client_id, 'listado de entidades');
+
     const entities = await EntityService.fetchEntitiesByClientId(client_id);
-
-    return res.status(200).json({
-      status: 'success',
-      results: entities.length,
-      data: { entities },
-    });
+    return sendCollection(res, 'entities', entities);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -32,21 +31,21 @@ exports.getEntities = async (req, res, next) => {
  */
 exports.insertEntity = async (req, res, next) => {
   try {
-    const { client_id, disp_name, datasource_type, datasource_config, rulechain_id } = req.body;
+    const { client_id, name, datasource_type, datasource_config, rulechain_id } = req.body;
     // Se asume validateSchema(createEntitySchema) antes de este controlador
 
-    const newEntity = await EntityService.createEntity({
+    // FIX S-02: un admin sólo puede crear entidades para su propia cuenta
+    assertOwnership(req.user, client_id, 'cliente');
+
+    const entity = await EntityService.createEntity({
       client_id,
-      disp_name,
+      name,
       datasource_type,
       datasource_config,
       rulechain_id,
     });
 
-    return res.status(201).json({
-      status: 'success',
-      data: { entity: newEntity },
-    });
+    return sendSuccess(res, 201, { entity });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -63,14 +62,12 @@ exports.getEntityById = async (req, res, next) => {
     // Se asume validateSchema(getEntityByIdSchema, 'params') antes de este controlador
 
     const entity = await EntityService.fetchEntityById(entity_id);
-    if (!entity) {
-      return next(new AppError('Entitad no encontrada', 404));
-    }
+    if (!entity) return next(entityNotFound());
 
-    return res.status(200).json({
-      status: 'success',
-      data: { entity },
-    });
+    // FIX S-02: la entidad debe pertenecer al usuario autenticado
+    assertOwnership(req.user, entity.client_id, 'entidad');
+
+    return sendSuccess(res, 200, { entity });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -79,25 +76,26 @@ exports.getEntityById = async (req, res, next) => {
 
 /**
  * PUT /api/entity
- * Actualiza datos de una entidad existente (disp_name, datasource_config, rulechain_id).
+ * Actualiza datos de una entidad existente (name, datasource_config, rulechain_id).
  */
 exports.updateEntity = async (req, res, next) => {
   try {
-    const { entity_id, disp_name, datasource_config, rulechain_id } = req.body;
+    const { entity_id, name, datasource_config, rulechain_id } = req.body;
     // Se asume validateSchema(updateEntitySchema) antes de este controlador
 
-    const updatedEntity = await EntityService.updateEntity({
+    // FIX S-02: verificar ownership ANTES de tocar la entidad
+    const existing = await EntityService.fetchEntityById(entity_id);
+    if (!existing) return next(entityNotFound());
+    assertOwnership(req.user, existing.client_id, 'entidad');
+
+    const entity = await EntityService.updateEntity({
       entity_id,
-      disp_name,
+      name,
       datasource_config,
       rulechain_id,
     });
 
-    return res.status(200).json({
-      status: 'success',
-      message: 'Entity updated successfully',
-      data: { entity: updatedEntity },
-    });
+    return sendSuccess(res, 200, { entity });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -106,22 +104,22 @@ exports.updateEntity = async (req, res, next) => {
 
 /**
  * DELETE /api/entity/:entity_id
- * Elimina una entidad y sus datos relacionados (historial, desvincula widgets y alarmas).
+ * Elimina una entidad y sus datos relacionados (historics, desvincula widgets y alarmas).
  */
 exports.deleteEntity = async (req, res, next) => {
   try {
     const { entity_id } = req.params;
     // Se asume validateSchema(deleteEntitySchema, 'params') antes de este controlador
 
-    const result = await EntityService.deleteEntity(entity_id);
-    if (result === 'not_found') {
-      return next(new AppError('Entidad no encontrada', 404));
-    }
+    // FIX S-02
+    const existing = await EntityService.fetchEntityById(entity_id);
+    if (!existing) return next(entityNotFound());
+    assertOwnership(req.user, existing.client_id, 'entidad');
 
-    return res.status(200).json({
-      status: 'success',
-      message: 'Entity and related data successfully deleted',
-    });
+    const result = await EntityService.deleteEntity(entity_id);
+    if (result === 'not_found') return next(entityNotFound());
+
+    return sendNoContent(res);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -138,12 +136,15 @@ exports.updateEntityRulechain = async (req, res, next) => {
     const { rulechain } = req.body;
     // Se asume validateSchema(updateEntityRulechainSchema) antes de este controlador
 
+    // FIX S-02
+    const existing = await EntityService.fetchEntityById(entity_id);
+    if (!existing) return next(entityNotFound());
+    assertOwnership(req.user, existing.client_id, 'entidad');
+
     await EntityService.updateEntityRulechain(entity_id, rulechain);
 
-    return res.status(200).json({
-      status: 'success',
-      message: 'Entity rulechain successfully updated',
-    });
+    const entity = await EntityService.fetchEntityById(entity_id);
+    return sendSuccess(res, 200, { entity });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));

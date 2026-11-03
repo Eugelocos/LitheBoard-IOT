@@ -19,16 +19,16 @@ exports.findByEmail = async (email) => {
  * Crea un nuevo cliente:
  *  - Encripta la contraseña con bcrypt.
  *  - Inserta en tabla clients.
- *  - Si admin_id existe, inserta en client_admins.
+ *  - Si admin_client_id existe, inserta en client_admins.
  */
-exports.createClient = async ({ name, email, password, access_level, admin_id }) => {
+exports.createClient = async ({ name, email, password, role, admin_client_id }) => {
   // 1) Hashear la contraseña
   const hashedPassword = await bcrypt.hash(password.trim(), 12);
 
   // 2) Insertar en clients
   const insertQuery =
-    'INSERT INTO clients (name, email, password, access_level_id, admin_id) VALUES (?, ?, ?, ?, ?)';
-  const [result] = await db.query(insertQuery, [name.trim(), email.trim(), hashedPassword, access_level, admin_id || null]);
+    'INSERT INTO clients (name, email, password, access_level_id, admin_client_id) VALUES (?, ?, ?, ?, ?)';
+  const [result] = await db.query(insertQuery, [name.trim(), email.trim(), hashedPassword, ({admin:1,client:2,manager:3})[role], admin_client_id || null]);
 
   if (result.affectedRows !== 1) {
     throw new AppError('No se pudo registrar el cliente', 500);
@@ -36,10 +36,10 @@ exports.createClient = async ({ name, email, password, access_level, admin_id })
 
   const newClientId = result.insertId;
 
-  // 3) Si admin_id existe, insertar en client_admins
-  if (admin_id) {
-    const assocQuery = 'INSERT INTO client_admins (client_id, admin_id) VALUES (?, ?)';
-    const [assocResult] = await db.query(assocQuery, [newClientId, admin_id]);
+  // 3) Si admin_client_id existe, insertar en client_admins
+  if (admin_client_id) {
+    const assocQuery = 'INSERT INTO client_admins (client_id, admin_client_id) VALUES (?, ?)';
+    const [assocResult] = await db.query(assocQuery, [newClientId, admin_client_id]);
     if (assocResult.affectedRows !== 1) {
       throw new AppError('No se pudo asociar el cliente al admin', 500);
     }
@@ -47,11 +47,11 @@ exports.createClient = async ({ name, email, password, access_level, admin_id })
 
   // 4) Devolver el nuevo cliente (sin contraseña)
   return {
-    _id: newClientId,
+    client_id: newClientId,
     name: name.trim(),
     email: email.trim(),
-    access_level,
-    admin_id: admin_id || null,
+    role,
+    admin_client_id: admin_client_id || null,
   };
 };
 
@@ -59,19 +59,19 @@ exports.createClient = async ({ name, email, password, access_level, admin_id })
  * Actualiza nombre y email de un cliente.
  * @returns {boolean} true si se actualizó, false si no se encontró el cliente.
  */
-exports.updateClient = async ({ id, name, email }) => {
+exports.updateClient = async ({ client_id, name, email }) => {
   const updateQuery = 'UPDATE clients SET name = ?, email = ? WHERE client_id = ?';
-  const [result] = await db.query(updateQuery, [name.trim(), email.trim(), id]);
+  const [result] = await db.query(updateQuery, [name.trim(), email.trim(), client_id]);
   return result.affectedRows === 1;
 };
 
 /**
- * Devuelve array de client_ids asociados a un admin_id.
+ * Devuelve array de client_ids asociados a un admin_client_id.
  * @param {number} adminId
  * @returns {number[]} Array de client_ids.
  */
 exports.getAssociatedClientIds = async (adminId) => {
-  const query = 'SELECT client_id FROM client_admins WHERE admin_id = ?';
+  const query = 'SELECT client_id FROM client_admins WHERE admin_client_id = ?';
   const [rows] = await db.query(query, [adminId]);
   return rows.map((r) => r.client_id);
 };
@@ -83,7 +83,7 @@ exports.getAssociatedClientIds = async (adminId) => {
  */
 exports.getClientsByIds = async (idsArray) => {
   // MySQL acepta array en IN (?) en mysql2
-  const query = 'SELECT client_id AS _id, name, email, access_level_id AS access_level, admin_id FROM clients WHERE client_id IN (?)';
+  const query = 'SELECT client_id, name, email, access_level_id, admin_client_id FROM clients WHERE client_id IN (?)';
   const [rows] = await db.query(query, [idsArray]);
   return rows;
 };
@@ -102,8 +102,8 @@ exports.deleteClient = async (clientId) => {
 
   // 2) Verificar dependencias en dashboards
   const [deps] = await db.query(
-    'SELECT dashboard_id FROM dashboards WHERE additional_client_ids LIKE ?',
-    [`%${clientId}%`]
+    'SELECT dashboard_id FROM dashboards WHERE JSON_CONTAINS(shared_client_ids, CAST(? AS JSON))',
+    [String(clientId)]
   );
   if (deps.length) return 'has_dependencies';
 
@@ -121,17 +121,17 @@ exports.deleteClient = async (clientId) => {
  * ------------------
  * Busca un cliente por su ID (client_id).
  * @param {number} clientId
- * @returns {Promise<object|null>} - { id, name, email, access_level, admin_id, password, password_changed_at } o null.
+ * @returns {Promise<object|null>} - { id, name, email, access_level, admin_client_id, password, password_changed_at } o null.
  */
 exports.findById = async (clientId) => {
   const query = `
     SELECT
-      client_id           AS id,
+      client_id,
       name,
       email,
       password,
-      access_level_id     AS role,
-      admin_id
+      access_level_id,
+      admin_client_id
     FROM clients
     WHERE client_id = ?
     LIMIT 1

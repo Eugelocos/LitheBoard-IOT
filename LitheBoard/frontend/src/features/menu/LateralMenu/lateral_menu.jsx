@@ -139,7 +139,7 @@ function LateralMenu({ handleSwitchSection, dashboards, user }) {
 
       {/* Y así sucesivamente para las demás secciones... */}
 
-      {user?.access_level_id == 1 ? (
+      {user?.role === "admin" ? (
         <>
       <Divider sx={{ my: 1, borderColor: "rgba(248,248,248,0.1)" }} />
           <ListItemButton

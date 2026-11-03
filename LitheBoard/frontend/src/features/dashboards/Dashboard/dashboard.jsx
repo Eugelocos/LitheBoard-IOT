@@ -1,3 +1,6 @@
+import { getApiErrorMessage } from "../../../services/api_errors";
+import { updateWidgetFromForm } from "../../../services/widgets_service";
+import { publishMessage as publishEntityMessage } from "../../../services/mqtt_service";
 import React, { useRef, useState, useEffect } from "react";
 import "../../../app/app.jsx";
 import Content from "./Widget/WidgetForm/widgets_form_selection.jsx";
@@ -7,15 +10,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "../../../dashboards_panel.css";
 import "../../../app.css";
 import EditWidgetDrawer from "./Widget/WidgetForm/Edit/edit_widget_form.jsx";
-import {
-  getDashboardWidgets,
-  getHistorialEntity,
-} from "../../../component/database_data_functions.jsx";
-import mqtt from "mqtt";
+import { getDashboardWidgets } from "../../../component/database_data_functions.jsx";
 import socket from "../../../socket.js";
-import config from "@config";
-import { Divider } from "@mui/material";
-import api from "../../../services/api.js"
+import { Alert, Button, Divider } from "@mui/material";
 
 function Dashboard(props) {
   const handleMouseOver = (e) => {
@@ -31,6 +28,8 @@ function Dashboard(props) {
     dashboard,
   } = props;
   const [devices_list, setDevicesList] = useState([]);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
   const [edited_widget_type, setEditedWidgetType] = useState([]);
   const [edited_widget_id, setEditedWidgetId] = useState([]);
   const [is_widget_editor_drawer_open, setIsWidgetEditorDrawerOpen] =
@@ -39,59 +38,17 @@ function Dashboard(props) {
   const ref_container = useRef(null);
   const sum_disp_ref = useRef(null);
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   function saveWidgetEdition(edited_data) {
     if (
       edited_data.widget_id &&
-      edited_data.widget_name &&
+      edited_data.name &&
       edited_data.entity_id
     ) {
-      const updated_widget = {
-        widget_id: edited_data.widget_id, // Asegúrate de tener el ID del widget a editar
-        widget_name: edited_data.widget_name,
-        entity_id: edited_data.entity_id,
-        dashboard_id: dashboard.dashboard_id,
-        widget_type: edited_data.widget_type,
-        config_data: {
-          sub_topic: edited_data.config_data.sub_topic,
-          pub_topic: edited_data.config_data.pub_topic,
-          entity_name: edited_data.config_data.entity_name,
-          ...(edited_data.widget_type === "switch" && {
-            message_on: edited_data.config_data.message_on,
-            message_off: edited_data.config_data.message_off,
-            estado_actual: edited_data.config_data.estado_actual || true,
-          }),
-          ...(edited_data.widget_type === "map" && {
-            lat: edited_data.config_data.lat,
-            lon: edited_data.config_data.lon,
-          }),
-          ...(edited_data.widget_type === "lineChart" && {
-            line_color: edited_data.config_data.line_color,
-          }),
-          ...(edited_data.widget_type === "barChart" && {
-            line_color: edited_data.config_data.line_color,
-          }),
-          ...(edited_data.widget_type === "customValueCard" && {
-            scriptHtml: edited_data.config_data.scriptHtml,
-            scriptCss: edited_data.config_data.scriptCss,
-          }),
-          selected_key: edited_data.config_data.selected_key,
-        },
-        client_id: edited_data.config_data.client_id,
-      };
-
-      // Realizamos la solicitud para editar el widget
-      return api
-        .put(
-          `${base_url}/api/widget/${updated_widget.widget_id}`,
-          updated_widget
-        )
-        .then((response) => {
-          console.log("Widget actualizado:", response.data.data);
-
-          window.location.reload();
-          return getDashboardWidgets(dashboard_id, user.client_id);
+      return updateWidgetFromForm(edited_data, dashboard.dashboard_id)
+        .then(() => {
+          const clientId = user?.client_id ?? dashboard?.client_id;
+          return getDashboardWidgets(dashboard_id, clientId);
         })
         .then(({ devices, history }) => {
           setDevicesList(devices);
@@ -107,91 +64,45 @@ function Dashboard(props) {
   }
 
   useEffect(() => {
-    socket.on("data_updated", async ({ entity_id }) => {
-      try {
-        const resp = await api.get(
-          `${base_url}/api/historic/entity/${entity_id}`
-        );
-        const allHistory = resp.data;
-        if (!allHistory.length) return;
-
-        const lastEntry = allHistory[allHistory.length - 1];
-
-        // 2) Añadir SOLO ese último registro a la lista existente
-        setDevicesList((prev) =>
-          prev.map((device) =>
-            device.entity_id !== entity_id
-              ? device
-              : {
-                  ...device,
-                  historial: [...device.historial, lastEntry],
-                }
-          )
-        );
-      } catch (err) {
-        console.error("Error fetching historic data:", err);
-      }
-    });
-
+    const handleHistoricCreated = ({ historic }) => {
+      setDevicesList((previous) => previous.map((widget) => {
+        if (widget.entity_id !== historic.entity_id || widget.historics.some((entry) => entry.historic_id === historic.historic_id)) return widget;
+        return { ...widget, historics: [...widget.historics, historic] };
+      }));
+    };
+    const handleConnectionChanged = ({ entity_id, connection_status }) => {
+      setDevicesList((previous) => previous.map((widget) => widget.entity_id === entity_id
+        ? { ...widget, connection_status } : widget));
+    };
+    socket.on("historic:created", handleHistoricCreated);
+    socket.on("entity:connection_changed", handleConnectionChanged);
     return () => {
-      socket.off("data_updated");
+      socket.off("historic:created", handleHistoricCreated);
+      socket.off("entity:connection_changed", handleConnectionChanged);
     };
-  }, [setDevicesList]);
-
-  useEffect(() => {
-    const handleStateChange = ({ entity_id, status }) => {
-      console.log("[WS] entity_state_change received:", entity_id, status);
-      setDevicesList(prev => {
-        const updated = prev.map(device => {
-          if (device.entity_id !== entity_id) return device;
-          const oldStatus = device.config.datasource_config.status;
-          console.log(
-            `→ Updating status for device ${entity_id}:`,
-            oldStatus,
-            "→",
-            status
-          );
-          return {
-            ...device,
-            config: {
-              ...device.config,
-              datasource_config: {
-                ...device.config.datasource_config,
-                status
-              }
-            }
-          };
-        });
-        console.log("[State] devicesList after status update:", updated);
-        return updated;
-      });
-    };
-
-    console.log("[WS] Subscribing to entity_state_change");
-    socket.on("entity_state_change", handleStateChange);
-    return () => {
-      console.log("[WS] Unsubscribing from entity_state_change");
-      socket.off("entity_state_change", handleStateChange);
-    };
-  }, [setDevicesList]);
+  }, []);
 
   useEffect(() => {
     const getDashboardWidgetsAsync = async () => {
       try {
+        const clientId = dashboard?.client_id ?? user?.client_id;
         const { devices, history } = await getDashboardWidgets(
           dashboard_id,
-          dashboard.client_id
+          clientId
         );
 
         //console.log("----------------------<0>----------------------");
         setDevicesList(devices);
+        setError("");
       } catch (error) {
-        console.error("Error fetching dashboard widgets:", error);
+        setError(getApiErrorMessage(error, "Could not load dashboard. Please try again."));
       }
     };
 
     getDashboardWidgetsAsync();
-  }, [dashboard_id]);
+    socket.on("connect", getDashboardWidgetsAsync);
+    return () => socket.off("connect", getDashboardWidgetsAsync);
+  }, [dashboard_id, reload]);
 
   function showWidgetFormSelection() {
     if (ref_container.current) ref_container.current.style.display = "none";
@@ -207,32 +118,27 @@ function Dashboard(props) {
 
 
   const publishMessage = (entity, message) => {
-    try {
-      const response = api.post(
-        `${base_url}/api/mqtt/publish`, 
-        {
-          'entity' : entity,
-          'message' : message
-        }
-      )  
-      if (response.status == 'success') {
-        console.log('Successfully published')
-      } 
-    } catch (err) {
-      console.error("Error publishing message:", err);
-    }
+    // FIX (junto con backend/routes/mqtt_routes.js): mandamos sólo el
+    // entity_id; el backend resuelve la entidad real y valida ownership.
+    // Antes se mandaba el objeto `entity` completo y el backend confiaba
+    // ciegamente en su client_id/entity_id. Responde 204 sin cuerpo.
+    return publishEntityMessage(entity.entity_id, message)
+      .catch((err) => {
+        console.error("Error publishing message:", err);
+      });
   };
 
   function toggleSwitchState(entity) {
-    var estadoActual = entity.config?.estadoActual;
-    const valorSeguro = estadoActual !== undefined ? estadoActual : true;
-    entity.config.estadoActual = !valorSeguro;
+    var is_on = entity.widget_config?.is_on;
+    const valorSeguro = is_on !== undefined ? is_on : true;
+    entity.widget_config.is_on = !valorSeguro;
     publishMessage(entity, JSON.stringify(valorSeguro));
     setDevicesList([...devices_list]);
   }
 
   return (
     <div>
+      {error && <Alert severity="error" action={<Button onClick={() => setReload((value) => value + 1)}>Retry</Button>}>{error}</Alert>}
       <div
         ref={ref_container}
         className="contenedor w-full h-full min-w-fit min-h-full bg-white border border-gray-300 rounded-xl shadow-sm m-1/4 overflow-hidden"

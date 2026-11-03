@@ -2,6 +2,10 @@
 
 const AppError = require('../../utils/app_error');
 const RulechainService = require('../../services/dbServices/rulechain_service');
+const { assertOwnership } = require('../../utils/authorization');
+const { sendSuccess, sendCollection, sendNoContent } = require('../../utils/response');
+
+const rulechainNotFound = () => new AppError('Rulechain no encontrada', 404, 'RULECHAIN_NOT_FOUND');
 
 /**
  * GET /api/rulechain?client_id=<id>
@@ -10,15 +14,11 @@ const RulechainService = require('../../services/dbServices/rulechain_service');
 exports.getRulechains = async (req, res, next) => {
   try {
     const { client_id } = req.query;
-    // Se asume validateSchema(getRulechainsSchema, 'query') antes de este controlador
+
+    assertOwnership(req.user, client_id, 'listado de rulechains');
 
     const rulechains = await RulechainService.fetchByClientId(client_id);
-
-    return res.status(200).json({
-      status: 'success',
-      results: rulechains.length,
-      data: { rulechains },
-    });
+    return sendCollection(res, 'rulechains', rulechains);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -32,16 +32,13 @@ exports.getRulechains = async (req, res, next) => {
 exports.getRulechainById = async (req, res, next) => {
   try {
     const { rulechain_id } = req.params;
-    // Se asume validateSchema(getRulechainByIdSchema, 'params') antes de este controlador
 
     const rulechain = await RulechainService.fetchById(rulechain_id);
-    if (!rulechain) {
-      return next(new AppError('Rulechain no encontrado', 404));
-    }
-    return res.status(200).json({
-      status: 'success',
-      data: { rulechain },
-    });
+    if (!rulechain) return next(rulechainNotFound());
+
+    assertOwnership(req.user, rulechain.client_id, 'rulechain');
+
+    return sendSuccess(res, 200, { rulechain });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -54,21 +51,19 @@ exports.getRulechainById = async (req, res, next) => {
  */
 exports.insertRulechain = async (req, res, next) => {
   try {
-    const { user_id, name, description, rulechain: rcJson, entities_ids } = req.body;
-    // Se asume validateSchema(createRulechainSchema) antes de este controlador
+    const { client_id, name, description, definition: rcJson, entity_ids } = req.body;
 
-    const newRulechain = await RulechainService.createRulechain({
-      user_id,
+    assertOwnership(req.user, client_id, 'cliente');
+
+    const rulechain = await RulechainService.createRulechain({
+      client_id,
       name,
       description,
       rcJson,
-      entities_ids,
+      entity_ids,
     });
 
-    return res.status(201).json({
-      status: 'success',
-      data: { rulechain: newRulechain },
-    });
+    return sendSuccess(res, 201, { rulechain });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -77,25 +72,27 @@ exports.insertRulechain = async (req, res, next) => {
 
 /**
  * PUT /api/rulechain
- * Actualiza un rulechain existente (incluye campo `compiled` generado por el service).
+ * Actualiza un rulechain existente (incluye campo `compiled` generado por el service)
+ * y lo devuelve actualizado.
  */
 exports.updateRulechain = async (req, res, next) => {
   try {
-    const { rulechain_id, name, description, rulechain: rcJson, entities_ids } = req.body;
-    // Se asume validateSchema(updateRulechainSchema) antes de este controlador
+    const { rulechain_id, name, description, definition: rcJson, entity_ids } = req.body;
+
+    const existing = await RulechainService.fetchById(rulechain_id);
+    if (!existing) return next(rulechainNotFound());
+    assertOwnership(req.user, existing.client_id, 'rulechain');
 
     await RulechainService.updateRulechain({
       rulechain_id,
       name,
       description,
       rcJson,
-      entities_ids,
+      entity_ids,
     });
 
-    return res.status(200).json({
-      status: 'success',
-      message: 'Rulechain actualizado correctamente',
-    });
+    const rulechain = await RulechainService.fetchById(rulechain_id);
+    return sendSuccess(res, 200, { rulechain });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -109,17 +106,15 @@ exports.updateRulechain = async (req, res, next) => {
 exports.deleteRulechain = async (req, res, next) => {
   try {
     const { rulechain_id } = req.params;
-    // Se asume validateSchema(deleteRulechainSchema, 'params') antes de este controlador
+
+    const existing = await RulechainService.fetchById(rulechain_id);
+    if (!existing) return next(rulechainNotFound());
+    assertOwnership(req.user, existing.client_id, 'rulechain');
 
     const deleted = await RulechainService.deleteRulechain(rulechain_id);
-    if (!deleted) {
-      return next(new AppError('Rulechain no encontrado', 404));
-    }
+    if (!deleted) return next(rulechainNotFound());
 
-    return res.status(200).json({
-      status: 'success',
-      message: 'Rulechain eliminado correctamente',
-    });
+    return sendNoContent(res);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));

@@ -1,3 +1,4 @@
+import { createWidgetFromForm } from "../../../../../services/widgets_service";
 import React, { useState, useEffect} from "react";
 import {
   FormControl,
@@ -9,7 +10,6 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  setWidget,
   getDashboardWidgets,
 } from "../../../../../component/database_data_functions";
 import widgetFieldsConfig from "./widget_forms_config";
@@ -39,7 +39,7 @@ function WidgetForm(props) {
     setSelectedDevice(device);
     setFormData((prevData) => ({
       ...prevData,
-      widget_name: prevData.widget_name,
+      name: prevData.name,
       client_id: device.client_id,
       entity_id: device.entity_id,
       widget_type: widget_type || "switch",
@@ -49,46 +49,12 @@ function WidgetForm(props) {
 
 
   const handleWidgetCreate = () => {
-    if (selectedDevice && form_data.widget_type && form_data.widget_name) {
-      const new_widget = {
-        widget_name: form_data.widget_name,
-        entity_id: selectedDevice.entity_id,
-        dashboard_id: dashboard_id,
-        widget_type: form_data.widget_type,
-        config_data: {
-          sub_topic: selectedDevice.sub_topic,
-          pub_topic: selectedDevice.pub_topic,
-          entity_name: selectedDevice.disp_name,
-          ...(form_data.widget_type === "switch" && {
-            message_on: form_data.message_on,
-            message_off: form_data.message_off,
-            estado_actual: true,
-          }),
-          ...(form_data.widget_type === "map" && {
-            lat: form_data.lat,
-            lon: form_data.lon,
-          }),
-          ...(form_data.widget_type === "lineChart" && {
-            line_color: form_data.line_color,
-          }),
-          ...(form_data.widget_type === "barChart" && {
-            line_color: form_data.line_color,
-          }),
-          ...(form_data.widget_type === "customValueCard" && {
-            scriptHtml: form_data.script_html,
-            scriptCss: form_data.script_css,
-          }),
+    if (selectedDevice && form_data.widget_type && form_data.name) {
+      createWidgetFromForm(form_data, selectedDevice, dashboard_id, user.client_id)
+        .then((created_widget) => {
+          console.log("Widget creado:", created_widget);
 
-          selected_key: form_data.widget_clave,
-        },
-        client_id: user.id,
-      };
-
-      setWidget(new_widget)
-        .then((response) => {
-          console.log("Widget creado:", response.data.data);
-
-          return getDashboardWidgets(dashboard_id, user.id);
+          return getDashboardWidgets(dashboard_id, user.client_id);
         })
         .then(({ devices, history }) => {
           setDevicesList(devices);
@@ -202,7 +168,7 @@ function WidgetForm(props) {
             >
               {entities.map((device, index) => (
                 <MenuItem key={device.entity_id} value={device.entity_id}>
-                  {device.disp_name}
+                  {device.name}
                 </MenuItem>
               ))}
             </Select>

@@ -4,6 +4,18 @@ const db = require('../config/db');
 const AppError = require('../utils/app_error');
 
 /**
+ * NUEVO (fix S-02): recupera una notificación por su ID, para poder
+ * verificar ownership (notification.client_id) antes de marcarla como leída.
+ * @param {string|number} notificationId
+ * @returns {object|null}
+ */
+exports.fetchById = async (notificationId) => {
+  const [rows] = await db.query('SELECT * FROM notifications WHERE notification_id = ?', [notificationId]);
+  if (!rows.length) return null;
+  return rows[0];
+};
+
+/**
  * Recupera notificaciones por client_id.
  * @param {string|number} clientId
  * @returns {Array<object>}
@@ -22,10 +34,10 @@ exports.fetchByClientId = async (clientId) => {
 
 /**
  * Inserta una nueva notificación.
- * @param {object} data - { alarm_id, client_id, date, data }
+ * @param {object} value - { alarm_id, client_id, created_at, value }
  * @returns {object} La notificación recién creada.
  */
-exports.createNotification = async ({ alarm_id, client_id, date, data: payload }) => {
+exports.createNotification = async ({ alarm_id, client_id, created_at, value: payload }) => {
   // Validar que existan alarm y client
   const [alarmCheck] = await db.query('SELECT alarm_id FROM alarms WHERE alarm_id = ?', [alarm_id]);
   if (!alarmCheck.length) {
@@ -37,10 +49,10 @@ exports.createNotification = async ({ alarm_id, client_id, date, data: payload }
   }
 
   const insertQuery = `
-    INSERT INTO notifications (alarm_id, client_id, date, data)
+    INSERT INTO notifications (alarm_id, client_id, created_at, value)
     VALUES (?, ?, ?, ?)
   `;
-  const [result] = await db.query(insertQuery, [alarm_id, client_id, date, payload]);
+  const [result] = await db.query(insertQuery, [alarm_id, client_id, created_at, JSON.stringify(payload)]);
   if (result.affectedRows !== 1) {
     throw new AppError('No se pudo insertar la notificación', 500);
   }
@@ -49,13 +61,14 @@ exports.createNotification = async ({ alarm_id, client_id, date, data: payload }
     notification_id: result.insertId,
     alarm_id,
     client_id,
-    date,
-    data: payload,
+    created_at,
+    value: payload,
+    is_read: false,
   };
 };
 
 /**
- * Marca una notificación como leída (visto = 1).
+ * Marca una notificación como leída (is_read = 1).
  * @param {string|number} notificationId
  */
 exports.markAsRead = async (notificationId) => {
@@ -67,7 +80,7 @@ exports.markAsRead = async (notificationId) => {
     throw new AppError('Notificación no encontrada', 404);
   }
 
-  const updateQuery = 'UPDATE notifications SET visto = 1 WHERE notification_id = ?';
+  const updateQuery = 'UPDATE notifications SET is_read = 1 WHERE notification_id = ?';
   const [result] = await db.query(updateQuery, [notificationId]);
   if (result.affectedRows !== 1) {
     throw new AppError('No se pudo marcar la notificación como leída', 500);

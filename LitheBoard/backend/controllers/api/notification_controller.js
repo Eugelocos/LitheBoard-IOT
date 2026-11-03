@@ -2,6 +2,8 @@
 
 const AppError = require('../../utils/app_error');
 const NotificationService = require('../../services/notification_service');
+const { assertOwnership } = require('../../utils/authorization');
+const { sendSuccess, sendCollection } = require('../../utils/response');
 
 /**
  * GET /api/notification/:client_id
@@ -10,18 +12,11 @@ const NotificationService = require('../../services/notification_service');
 exports.getNotificationsByClientId = async (req, res, next) => {
   try {
     const { client_id } = req.params;
-    // Se asume validateSchema(getNotificationsSchema, 'params') antes de este controller
+
+    assertOwnership(req.user, client_id, 'listado de notificaciones');
 
     const notifications = await NotificationService.fetchByClientId(client_id);
-    if (!notifications.length) {
-      return next(new AppError('No se encontraron notificaciones para este cliente.', 404));
-    }
-
-    return res.status(200).json({
-      status: 'success',
-      results: notifications.length,
-      data: { notifications },
-    });
+    return sendCollection(res, 'notifications', notifications);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -34,15 +29,13 @@ exports.getNotificationsByClientId = async (req, res, next) => {
  */
 exports.insertNotification = async (req, res, next) => {
   try {
-    const { alarm_id, client_id, date, data } = req.body;
-    // Se asume validateSchema(createNotificationSchema) antes de este controller
+    const { alarm_id, client_id, created_at, value } = req.body;
 
-    const newNotification = await NotificationService.createNotification({ alarm_id, client_id, date, data });
+    assertOwnership(req.user, client_id, 'cliente');
 
-    return res.status(201).json({
-      status: 'success',
-      data: { notification: newNotification },
-    });
+    const notification = await NotificationService.createNotification({ alarm_id, client_id, created_at, value });
+
+    return sendSuccess(res, 201, { notification });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -51,19 +44,22 @@ exports.insertNotification = async (req, res, next) => {
 
 /**
  * PATCH /api/notification/:notification_id/read
- * Marca una notificación como leída (visto = 1).
+ * Marca una notificación como leída y la devuelve actualizada.
  */
 exports.markNotificationAsRead = async (req, res, next) => {
   try {
     const { notification_id } = req.params;
-    // Se asume validateSchema(markNotificationAsReadSchema, 'params') antes de este controller
+
+    const existing = await NotificationService.fetchById(notification_id);
+    if (!existing) {
+      return next(new AppError('Notificación no encontrada', 404, 'NOTIFICATION_NOT_FOUND'));
+    }
+    assertOwnership(req.user, existing.client_id, 'notificación');
 
     await NotificationService.markAsRead(notification_id);
+    const notification = await NotificationService.fetchById(notification_id);
 
-    return res.status(200).json({
-      status: 'success',
-      message: 'Notificación marcada como leída.',
-    });
+    return sendSuccess(res, 200, { notification });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));

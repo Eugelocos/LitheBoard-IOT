@@ -51,7 +51,7 @@ router.put(
 
 // Obtener clientes asociados a un admin
 router.get(
-  '/admins/:admin_id/clients',
+  '/admins/:admin_client_id/clients',
   protect,
   restrictTo('admin'), // Solo admins pueden ver sus clientes
   validateSchema(getAssociatedClientsSchema, 'params'),

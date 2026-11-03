@@ -20,23 +20,26 @@ exports.getWidgetByIdSchema = Joi.object({
 });
 
 exports.createWidgetSchema = Joi.object({
-  widget_name: Joi.string().max(100).required(),
+  name: Joi.string().max(100).required(),
   entity_id: Joi.number().integer().required(),
   dashboard_id: Joi.number().integer().required(),
-  widget_type: Joi.string().max(50).required(),
-  config_data: Joi.object().required(),
+  widget_type: Joi.string().valid('switch', 'line_chart', 'bar_chart', 'map', 'custom_value_card').required(),
+  widget_config: Joi.object({ data_key: Joi.string(), is_on: Joi.boolean(), message_on: Joi.any(), message_off: Joi.any(), lat: Joi.alternatives().try(Joi.number(), Joi.string()), lon: Joi.alternatives().try(Joi.number(), Joi.string()), line_color: Joi.string(), html_template: Joi.string(), css: Joi.string() }).unknown(false).required(),
   client_id: Joi.number().integer().required(),
 });
 
 exports.updateWidgetSchema = Joi.object({
   widget_id: Joi.number().integer().required(),
-  widget_name: Joi.string().max(100).required(),
+  name: Joi.string().max(100).required(),
   entity_id: Joi.number().integer().required(),
   dashboard_id: Joi.number().integer().required(),
-  widget_type: Joi.string().max(50).required(),
-  config_data: Joi.object().required(),
+  widget_type: Joi.string().valid('switch', 'line_chart', 'bar_chart', 'map', 'custom_value_card').required(),
+  widget_config: Joi.object({ data_key: Joi.string(), is_on: Joi.boolean(), message_on: Joi.any(), message_off: Joi.any(), lat: Joi.alternatives().try(Joi.number(), Joi.string()), lon: Joi.alternatives().try(Joi.number(), Joi.string()), line_color: Joi.string(), html_template: Joi.string(), css: Joi.string() }).unknown(false).required(),
 });
 
 exports.deleteWidgetSchema = Joi.object({
   widget_id: Joi.number().integer().required(),
 });
+
+// Resource schema metadata.
+for (const name of Object.keys(exports)) exports[name] = exports[name].meta({ resource: 'widget' });

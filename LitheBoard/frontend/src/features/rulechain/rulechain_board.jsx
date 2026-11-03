@@ -1,3 +1,4 @@
+import { toFlowGraph, toDefinition } from "../../view_models/rulechain_definition";
 import { Paper, Typography, Box } from "@mui/material";
 import React, { useEffect, useState, useCallback } from "react";
 import {
@@ -10,8 +11,6 @@ import {
 } from "@xyflow/react";
 import NodePalette from "./node_palette";
 import "@xyflow/react/dist/style.css";
-import api from "../../services/api"
-import config from "@config";
 
 // Importa nodos personalizados
 import InputNode from "./nodes/input_node";
@@ -32,7 +31,7 @@ const customNodeTypes = {
 
 const getEntityDataSourceConfig = (entity) => {
   return {
-    topic: entity?.sub_topic || "default/topic",
+    topic: entity?.datasource_config?.sub_topic || "default/topic",
     qos: 1,
   };
 };
@@ -67,8 +66,8 @@ function RuleChainEditor({ rulechain, onSave, onCancel }) {
 
   // Al cargar desde la BD, reinyecta onConfigChange en cada nodo
   useEffect(() => {
-    if (rulechain?.rulechain) {
-      const loaded = rulechain.rulechain;
+    if (rulechain?.definition) {
+      const loaded = toFlowGraph(rulechain.definition);
       const nodesWithCallback = (loaded.nodes || []).map((n) => ({
         ...n,
         data: {
@@ -130,7 +129,7 @@ function RuleChainEditor({ rulechain, onSave, onCancel }) {
   }, []);
 
   const handleSave = useCallback(async () => {
-    onSave({ ...rulechain, rulechain: { nodes, edges } });
+    onSave({ ...rulechain, definition: toDefinition(nodes, edges) });
   }, [nodes, edges, onSave, rulechain]);
 
   return (

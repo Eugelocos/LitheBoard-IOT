@@ -1,10 +1,12 @@
+import { deleteWidget } from "../../../../services/widgets_service";
+import { getApiErrorMessage } from "../../../../services/api_errors";
 import React, { useState, useEffect, useRef } from "react";
 import {
+  Alert,
   Card,
   CardContent,
   Typography,
   Switch,
-  Button,
   Tooltip,
   IconButton,
 } from "@mui/material";
@@ -33,12 +35,9 @@ import {
   Marker,
   Polyline,
   Popup,
-  Tooltip as leafletTooltip,
 } from "react-leaflet";
 
 import WidgetCustomValueCard from "./WidgetTypes/widget_custom_value_card";
-import env_config from "@config";
-import api from "../../../../services/api"
 
 const IOSSwitch = styled((props) => (
   <Switch focusVisibleClassName=".Mui-focusVisible" disableRipple {...props} />
@@ -102,27 +101,26 @@ function DeviceCard({
   setEditedWidgetId,
   setEditedWidgetType,
 }) {
-  const [position, setPosition] = useState(null);
   const [is_loading, setis_loading] = useState(true);
   const [config, setConfig] = useState({});
+  const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const chart_ref = useRef();
-  const [chart_size, setchart_size] = useState({ width: 0, height: 0 });
-  const [historial, setHistorial] = useState({});
+  const [historics, setHistorial] = useState([]);
 
-  const base_url = `${env_config.BACKEND_URL}:${env_config.BACKEND_API_PORT}`;
 
   useEffect(() => {
-    setConfig(device.config);
-  }, [device.config, device.entity_id]);
+    setConfig(device.widget_config);
+  }, [device.widget_config, device.entity_id]);
 
   useEffect(() => {
-    if (device.historial && device.config?.selected_key) {
+    if (device.historics && device.widget_config?.data_key) {
       setHistorial(() => {
-        const filteredHistorial = device.historial.filter((entry) => {
+        const filteredHistorial = device.historics.filter((entry) => {
           const data = entry.data || {};
           const hasKey = Object.prototype.hasOwnProperty.call(
             data,
-            device.config.selected_key
+            device.widget_config.data_key
           );
           return hasKey;
         });
@@ -133,43 +131,26 @@ function DeviceCard({
       setHistorial([]);
     }
     setis_loading(false);
-  }, [device.widget_type, device.historial, device.config?.selected_key]);
-
-  useEffect(() => {
-    const updateSize = () => {
-      if (chart_ref.current) {
-        setchart_size({
-          width: chart_ref.current.offsetWidth,
-          height: chart_ref.current.offsetHeight,
-        });
-      }
-    };
-
-    window.addEventListener("resize", updateSize);
-    updateSize();
-
-    return () => window.removeEventListener("resize", updateSize);
-  }, []);
+  }, [device.widget_type, device.historics, device.widget_config?.data_key]);
 
   const eliminarWidget = async () => {
+    if (deleting || !window.confirm("Delete this widget? Device data will be kept.")) return;
+    setDeleting(true);
+    setError("");
     try {
-      const { data } = await api.delete(`/api/widget/${device.widget_id}`);
-
-      if (data.status === "success") {
-        setDevicesList((prev) =>
-          prev.filter((widget) => widget.widget_id !== device.widget_id)
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Error deleting widget:",
-        error.response?.data || error.message
+      // 204 sin cuerpo: si no hubo error, el widget se eliminó.
+      await deleteWidget(device.widget_id);
+      setDevicesList((prev) =>
+        prev.filter((widget) => widget.widget_id !== device.widget_id)
       );
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Could not delete widget. Please try again."));
+    } finally {
+      setDeleting(false);
     }
   };
 
   function editWidget() {
-    console.log("device.widget_id : ", device.widget_id);
     setEditedWidgetId(device.widget_id);
     setEditedWidgetType(device.widget_type);
     openWidgetEditor(true);
@@ -179,71 +160,77 @@ function DeviceCard({
     return dayjs(tickItem).format("DD/MM");
   };
 
+  // FIX: cada entrada de `historics` tiene la forma
+  // { date, data: { lat, lon, ... }, entity_id, historic_id, ... }.
+  // El mapa necesitaba leer `entry.data.lat/lon`, no `entry.lat/lon`
+  // ni `device.historics.data?.lat` (historics es un array, no tiene .data).
+  const mapPoints = historics
+    .map((entry) => {
+      const data = entry.data || {};
+      if (data.lat == null || data.lon == null) return null;
+      const lat = parseFloat(data.lat);
+      const lon = parseFloat(data.lon);
+      if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
+      return { lat, lon, timestamp: entry.recorded_at };
+    })
+    .filter((point) => point !== null);
+
+  const mapCenter =
+    mapPoints.length > 0
+      ? [mapPoints[mapPoints.length - 1].lat, mapPoints[mapPoints.length - 1].lon]
+      : [0, 0];
+
   return (
-<Card
-  className={`
-    bg-white 
-    text-gray-800
-    transition-all
-    ${device.widget_type === "switch" ? "w-fit" : "w-[45%]"} 
-    h-fit 
-    max-w-full 
-    m-1.5 
-    p-0 
-    overflow-hidden 
-    hover:shadow-sm
-    backdrop-blur-[2px]
-    ${device.widget_type !== "switch" && "min-w-[300px]"}
-  `}
-  style={{
-    borderRadius: "12px",
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
-    border: "1px solid rgba(245, 245, 245, 0.8)"
-  }}
->
-      <CardContent
-        style={{ height: "100%", display: "flex", flexDirection: "column" }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "12px",
-          }}
-        >
-          <Typography variant="h5">{device.widget_name}</Typography>
+    <Card
+      className={`
+        bg-white
+        text-gray-800
+        transition-all
+        rounded-xl
+        shadow-[0_2px_8px_rgba(0,0,0,0.05)]
+        border border-[rgba(245,245,245,0.8)]
+        ${device.widget_type === "switch" ? "w-fit" : "w-[45%]"}
+        h-fit
+        max-w-full
+        m-1.5
+        p-0
+        overflow-hidden
+        hover:shadow-sm
+        backdrop-blur-[2px]
+        ${device.widget_type !== "switch" && "min-w-[300px]"}
+      `}
+    >
+      <CardContent className="h-full flex flex-col">
+        {error && <Alert severity="error">{error}</Alert>}
+        <div className="flex justify-between items-center mb-3">
+          <Typography variant="h5">{device.name}</Typography>
           <Tooltip
             title={
-              device.config?.datasource_type === "MQTT" ? (
+              device.widget_config?.datasource_type === "mqtt" ? (
                 <div>
                   <Typography variant="body2">
-                    Subscribed Topic: {device.config?.datasource_config?.sub_topic || "N/A"}
+                    Subscribed Topic: {device.widget_config?.datasource_config?.sub_topic || "N/A"}
                   </Typography>
                   <Typography variant="body2">
-                    Publish Topic: {device.config?.datasource_config?.pub_topic || "N/A"}
+                    Publish Topic: {device.widget_config?.datasource_config?.pub_topic || "N/A"}
                   </Typography>
                   <Typography variant="body2">
                     Associated Entity Name:{" "}
-                    {device.config?.entity_name || "N/A"}
+                    {device.widget_config?.entity_name || "N/A"}
                   </Typography>
                 </div>
-              ) : device.config?.datasource_type === "API" ? (
+              ) : device.widget_config?.datasource_type === "api" ? (
                 <div>
                   <Typography variant="body2">
                     Base URL:{" "}
-                    {device.config?.datasource_config?.base_url || "N/A"}
+                    {device.widget_config?.datasource_config?.base_url || "N/A"}
                   </Typography>
                   <Typography variant="body2">
-                    Endpoint:{" "}
-                    {device.config?.datasource_config?.endpoint || "N/A"}
-                  </Typography>
-                  <Typography variant="body2">
-                    Method: {device.config?.datasource_config?.method || "N/A"}
+                    Method: {device.widget_config?.datasource_config?.method || "N/A"}
                   </Typography>
                   <Typography variant="body2">
                     Polling Interval:{" "}
-                    {device.config?.datasource_config?.polling_interval ||
+                    {device.widget_config?.datasource_config?.polling_interval_ms ||
                       "N/A"}
                   </Typography>
                 </div>
@@ -253,10 +240,10 @@ function DeviceCard({
                 </Typography>
               )
             }
-            style={{zIndex:15}}
+            className="z-[15]"
           >
-            <IconButton             style={{zIndex:15}}>
-              <InfoIcon style={{ color: "#232939" }} />
+            <IconButton className="z-[15]">
+              <InfoIcon className="text-[#232939]" />
             </IconButton>
           </Tooltip>
         </div>
@@ -264,55 +251,39 @@ function DeviceCard({
         {device.entity_id ? (
           <div className="relative h-full">
             {device.widget_type === "switch" && (
-              <div
-                style={{
-                  flex: "1 1 auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
-                className="m-2"
-              >
+              <div className="flex-1 flex flex-col justify-center m-2">
                 <IOSSwitch
-                  checked={device.estadoActual}
+                  checked={device.widget_config?.is_on}
                   onClick={() => toggleSwitchState(device)}
                 />
-                <Typography variant="body2" style={{ marginLeft: "8px" }}>
-                  {device.estadoActual ? "ON" : "OFF"}
+                <Typography variant="body2" className="ml-2">
+                  {device.widget_config?.is_on ? "ON" : "OFF"}
                 </Typography>
               </div>
             )}
-            {device.widget_type === "lineChart" && (
-              <div
-                style={{
-                  flex: "1 1 auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
-                ref={chart_ref}
-              >
+            {device.widget_type === "line_chart" && (
+              <div className="flex-1 flex flex-col justify-center" ref={chart_ref}>
                 <ResponsiveContainer width="100%" aspect={5.0 / 3.0}>
                   <LineChart
                     width={400}
                     height={300}
-                    data={historial}
+                    data={historics}
                     margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tickFormatter={formatXAxis} />
+                    <XAxis dataKey="recorded_at" tickFormatter={formatXAxis} />
                     <YAxis />
                     <RechartsTooltip
                       wrapperStyle={{ backgroundColor: "#000", fontSize: 12 }}
-                      labelFormatter={
-                        (label) => dayjs(label).format("YYYY/MM/DD") // Formato de fecha para el tooltip
+                      labelFormatter={(label) =>
+                        dayjs(label).format("YYYY/MM/DD")
                       }
                     />
                     <Legend layout="vertical" verticalAlign="top" height={36} />
                     <Line
                       type="linear"
-                      dataKey={`data.${device.config?.selected_key}`}
-                      stroke={device.config.line_color}
+                      dataKey={`data.${device.widget_config?.data_key}`}
+                      stroke={device.widget_config?.line_color || "#2196F3"}
                       dot={{
                         stroke: "#b1b1b1",
                         strokeWidth: 1,
@@ -324,21 +295,13 @@ function DeviceCard({
                 </ResponsiveContainer>
               </div>
             )}
-            {device.widget_type === "barChart" && (
-              <div
-                style={{
-                  flex: "1 1 auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
-                ref={chart_ref}
-              >
+            {device.widget_type === "bar_chart" && (
+              <div className="flex-1 flex flex-col justify-center" ref={chart_ref}>
                 <ResponsiveContainer width="100%" aspect={5.0 / 3.0}>
                   <BarChart
                     width={400}
                     height={300}
-                    data={historial}
+                    data={historics}
                     margin={{
                       top: 5,
                       right: 30,
@@ -348,21 +311,21 @@ function DeviceCard({
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
-                      dataKey="date"
+                      dataKey="recorded_at"
                       tickFormatter={formatXAxis}
                       interval="preserveStartEnd"
                     />
                     <YAxis />
                     <RechartsTooltip
                       wrapperStyle={{ backgroundColor: "#000", fontSize: 12 }}
-                      labelFormatter={
-                        (label) => dayjs(label).format("YYYY/MM/DD") // Formato de fecha para el tooltip
+                      labelFormatter={(label) =>
+                        dayjs(label).format("YYYY/MM/DD")
                       }
                     />
                     <Legend />
                     <Bar
-                      dataKey={`data.${device.config?.selected_key}`}
-                      fill={device.config?.line_color || "#fff000"}
+                      dataKey={`data.${device.widget_config?.data_key}`}
+                      fill={device.widget_config?.line_color || "#fff000"}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -370,31 +333,17 @@ function DeviceCard({
             )}
             {device.widget_type === "map" && (
               <div
-                style={{
-                  flex: "1 1 auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  height: "400px",
-                  width: "100%",
-                }}
+                className="flex-1 flex flex-col justify-center h-[400px] w-full"
                 ref={chart_ref}
                 id="map"
               >
                 {is_loading ? (
                   <div>Loading map...</div>
-                ) : historial.length > 0 ? (
+                ) : mapPoints.length > 0 ? (
                   <MapContainer
-                    center={
-                      historial && device.historial.data?.lat
-                        ? [
-                            parseFloat(historial.data?.lat),
-                            parseFloat(historial.data?.lon),
-                          ]
-                        : [0, 0] // Posición predeterminada si no hay devices_list válidos
-                    }
+                    center={mapCenter}
                     zoom={4}
-                    style={{ height: "100vh", width: "100%" }}
+                    className="h-screen w-full"
                     scrollWheelZoom={false}
                   >
                     <TileLayer
@@ -402,61 +351,23 @@ function DeviceCard({
                       attribution='&copy; <a href="https://www.esri.com">Esri</a>'
                     />
 
-                    {historial.map((entry, index) => {
-                      try {
-                        const data = entry;
-                        if (data.lat && data.lon) {
-                          const position = [
-                            parseFloat(data.lat),
-                            parseFloat(data.lon),
-                          ];
-                          return (
-                            <Marker key={index} position={position}>
-                              <Popup>
-                                <div>
-                                  <strong>Lat:</strong> {position[0]}
-                                  <br />
-                                  <strong>Lon:</strong> {position[1]}
-                                  <br />
-                                  <small>
-                                    Timestamp: {data.timestamp || "N/A"}
-                                  </small>
-                                </div>
-                              </Popup>
-                            </Marker>
-                          );
-                        }
-                      } catch (error) {
-                        console.error(
-                          "Error parsing entry data:",
-                          entry,
-                          error
-                        );
-                      }
-                      return null; // Ignorar entradas no válidas
-                    })}
+                    {mapPoints.map((point, i) => (
+                      <Marker key={i} position={[point.lat, point.lon]}>
+                        <Popup>
+                          <div>
+                            <strong>Lat:</strong> {point.lat}
+                            <br />
+                            <strong>Lon:</strong> {point.lon}
+                            <br />
+                            <small>Timestamp: {point.timestamp || "N/A"}</small>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    ))}
 
-                    {historial.length > 1 && (
+                    {mapPoints.length > 1 && (
                       <Polyline
-                        positions={historial
-                          .map((entry) => {
-                            try {
-                              const data = entry.data;
-                              if (data.lat && data.lon) {
-                                return [
-                                  parseFloat(data.lat),
-                                  parseFloat(data.lon),
-                                ];
-                              }
-                            } catch (error) {
-                              console.error(
-                                "Error parsing data for polyline:",
-                                error
-                              );
-                            }
-                            return null; // Ignorar puntos no válidos
-                          })
-                          .filter((point) => point !== null)} // Filtra los puntos nulos
+                        positions={mapPoints.map((p) => [p.lat, p.lon])}
                         color="blue"
                       />
                     )}
@@ -466,27 +377,18 @@ function DeviceCard({
                 )}
               </div>
             )}
-            {device.widget_type === "customValueCard" && (
+            {device.widget_type === "custom_value_card" && (
               <div
-                style={{
-                  flex: "1 1 auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  height: "400px",
-                  width: "100%",
-                }}
+                className="flex-1 flex flex-col justify-center h-[400px] w-full"
                 ref={chart_ref}
-                id="customValueCard"
+                id="custom_value_card"
               >
                 <WidgetCustomValueCard
                   value={
-                    device.historial && device.historial.length > 0
+                    device.historics && device.historics.length > 0
                       ? (() => {
-                          const selectedKey = device.config?.selected_key;
-
-                          // Encuentra la última entrada con la clave seleccionada
-                          const lastEntryWithKey = [...device.historial]
+                          const selectedKey = device.widget_config?.data_key;
+                          const lastEntryWithKey = [...device.historics]
                             .reverse()
                             .find((entry) =>
                               Object.prototype.hasOwnProperty.call(
@@ -505,21 +407,21 @@ function DeviceCard({
                         })()
                       : "No data available"
                   }
-                  html={device.config?.scriptHtml || ""}
-                  css={device.config?.scriptCss || ""}
+                  html={device.widget_config?.html_template || ""}
+                  css={device.widget_config?.css || ""}
                 ></WidgetCustomValueCard>
               </div>
             )}
 
             {/* inactive state overlay*/}
-            {device.config.datasource_config?.status === "inactive" && (
+            {device.connection_status === "offline" && (
               <div
-                className={`absolute inset-0 flex items-center justify-center p-4 
+                className={`absolute inset-0 flex items-center justify-center p-4
                 ${
                   device.widget_type === "switch"
                     ? "bg-white/70"
                     : "bg-white/70"
-                } 
+                }
                 backdrop-blur-sm rounded-lg z-10`}
               >
                 <div
@@ -570,7 +472,7 @@ function DeviceCard({
         <div className="inline-block mt-4">
           <IconButton
             className="text-my-blue hover:text-red-900 "
-            onClick={eliminarWidget}
+            disabled={deleting} onClick={eliminarWidget}
           >
             <DeleteIcon />
           </IconButton>

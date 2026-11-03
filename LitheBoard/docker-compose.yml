@@ -33,17 +33,11 @@ services:
     ports:
       - "3001:3001" # API
       - "3007:3007" # WebSocket
-    environment:
-      - EMQX_NAME=litheboard-emqx
-      - EMQX_LISTENER__TCP__EXTERNAL__PORT=1883
-      - EMQX_LISTENER__HTTP__EXTERNAL__PORT=8083
-      - EMQX_LISTENER__WEBSOCKET__EXTERNAL__PORT=8084
-      - EMQX_NODE__NAME=emqx@127.0.0.1
-      - EMQX_NODE__SET_COOKIE=secure-cookie-value-1234
     networks:
       - litheboard-network
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
   # EMQX Broker
   emqx:
@@ -53,11 +47,20 @@ services:
       - "18083:18083"
       - "1883:1883"
     environment:
-      EMQX_LOADED_PLUGINS: "emqx_auth_username"
-      EMQX_AUTH__USER__1__USERNAME: "admin"
-      EMQX_AUTH__USER__1__PASSWORD: "admin123"
+      - EMQX_NODE_NAME=emqx@node1.local
+      - EMQX_DASHBOARD__DEFAULT_PASSWORD=admin123
+      # 1. Desactiva conexiones anónimas
+      - EMQX_ALLOW_ANONYMOUS=false
+      # 2. Define el mecanismo de autenticación (Password-Based / Built-in Database)
+      - EMQX_AUTHENTICATION__1__MECHANISM=password_based
+      - EMQX_AUTHENTICATION__1__BACKEND=built_in_database
+      - EMQX_AUTHENTICATION__1__USER_TYPE=username
+      # 3. Usuario por defecto
+      - EMQX_AUTHENTICATION__1__USERS__1__USERNAME=admin
+      - EMQX_AUTHENTICATION__1__USERS__1__PASSWORD=admin123
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     networks:
       - litheboard-network
 
@@ -77,3 +80,9 @@ services:
     volumes:
       - ./db/data:/var/lib/mysql
       - ./db/dump.sql:/docker-entrypoint-initdb.d/dump.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s

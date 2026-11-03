@@ -15,7 +15,7 @@ exports.fetchByEntityId = async (entityId) => {
     throw new AppError('Entity no encontrada', 404);
   }
 
-  const query = 'SELECT * FROM historial WHERE entity_id = ?';
+  const query = 'SELECT * FROM historics WHERE entity_id = ?';
   const [rows] = await db.query(query, [entityId]);
   return rows;
 };
@@ -32,16 +32,16 @@ exports.fetchByClientId = async (clientId) => {
     throw new AppError('Client no encontrado', 404);
   }
 
-  const query = 'SELECT * FROM historial WHERE client_id = ?';
+  const query = 'SELECT * FROM historics WHERE client_id = ?';
   const [rows] = await db.query(query, [clientId]);
   return rows;
 };
 
 /**
- * Inserta un nuevo registro en la tabla `historial`.
- * @param {object} data - { entity_id, date, data, client_id, selected_key }
+ * Inserta un nuevo registro en la tabla `historics`.
+ * @param {object} data - { entity_id, recorded_at, data, client_id, data_key }
  */
-exports.createHistoric = async ({ entity_id, date, data: recordData, client_id, selected_key }) => {
+exports.createHistoric = async ({ entity_id, recorded_at, data: recordData, client_id, data_key }) => {
   // 1) Validar existencia de entity y client
   const [entityCheck] = await db.query('SELECT entity_id FROM entities WHERE entity_id = ?', [entity_id]);
   if (!entityCheck.length) {
@@ -55,13 +55,16 @@ exports.createHistoric = async ({ entity_id, date, data: recordData, client_id, 
 
   // 2) Insertar registro
   const insertQuery = `
-    INSERT INTO historial (entity_id, date, data, client_id, selected_key)
+    INSERT INTO historics (entity_id, recorded_at, data, client_id, data_key)
     VALUES (?, ?, ?, ?, ?)
   `;
-  const [result] = await db.query(insertQuery, [entity_id, date, recordData, client_id, selected_key]);
+  const [result] = await db.query(insertQuery, [entity_id, recorded_at, JSON.stringify(recordData), client_id, data_key]);
   if (result.affectedRows !== 1) {
     throw new AppError('No se pudo insertar el historic', 500);
   }
 
+  await require('../sockets/ws_helper').emitHistoricCreated({
+    historic_id: result.insertId, entity_id, client_id, recorded_at, data: recordData, data_key,
+  });
   return;
 };

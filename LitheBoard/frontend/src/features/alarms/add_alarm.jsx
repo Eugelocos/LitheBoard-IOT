@@ -1,6 +1,9 @@
+import { getApiErrorMessage } from "../../services/api_errors";
+import { createAlarm, updateAlarm } from "../../services/alarms_service";
 import React, { useState } from "react";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import {
+  Alert,
   IconButton,
   TextField,
   Button,
@@ -12,56 +15,51 @@ import {
   Grid,
   Container
 } from "@mui/material";
-import config from "@config";
-import api from "../../services/api.js"
 
-function AddAlarm({ client_id, onCancel, onSave, entities }) {
-  const [selected_entity, setSelectedEntity] = useState("");
-  const [valor, setValor] = useState("");
-  const [selected_key, setSelectedKey] = useState("");
-  const [condition, setCondition] = useState("");
+function AddAlarm({ client_id, onCancel, onSave, entities, alarm = null }) {
+  const [selected_entity, setSelectedEntity] = useState(alarm?.entity_id ?? "");
+  const [threshold, setValor] = useState(alarm?.threshold ?? "");
+  const [data_key, setSelectedKey] = useState(alarm?.data_key ?? "");
+  const [condition, setCondition] = useState(alarm?.operator ?? "");
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const handleEntityChange = (e) => {
     setSelectedEntity(e.target.value);
   };
 
-  const handleSaveAlarm = () => {
-    const alarmData = {
-      entity_id: selected_entity,
-      valor,
-      client_id: client_id,
-      selected_key: selected_key,
-      alarm_condition: condition
-    };
-
-    api
-      .post(`${base_url}/api/alarm`, alarmData)
-      .then((response) => {
-        console.log("Alarm saved:", response.data.data);
-        setSelectedEntity("");
-        setValor("");
-        setSelectedKey("");
-        setCondition("");
-        onSave();
-      })
-      .catch((error) => {
-        console.error("Error saving alarm:", error);
-      });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const handleSaveAlarm = async () => {
+    if (submitting) return;
+    setError("");
+    if (!selected_entity || threshold === "" || !Number.isFinite(Number(threshold)) || !data_key.trim() || !condition) {
+      setError("Complete all fields and enter a valid threshold.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = { entity_id: selected_entity, threshold: Number(threshold), client_id, data_key: data_key.trim(), operator: condition };
+      const saved = alarm ? await updateAlarm(alarm.alarm_id, payload) : await createAlarm(payload);
+      onSave(saved);
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Could not save alarm. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <Container>
+      {error && <Alert severity="error">{error}</Alert>}
       <Grid container spacing={2} alignItems="center">
         <Grid item>
-          <IconButton onClick={onCancel}>
+          <IconButton disabled={submitting} onClick={onCancel}>
             <ArrowBackRoundedIcon />
           </IconButton>
         </Grid>
         <Grid item>
           <Typography variant="h5" component="h2">
-            Crear Alarma
+            {alarm ? "Editar alarma" : "Crear Alarma"}
           </Typography>
         </Grid>
       </Grid>
@@ -82,7 +80,7 @@ function AddAlarm({ client_id, onCancel, onSave, entities }) {
               </MenuItem>
               {entities.map((entity) => (
                 <MenuItem key={entity.entity_id} value={entity.entity_id}>
-                  {entity.disp_name}
+                  {entity.name}
                 </MenuItem>
               ))}
             </Select>
@@ -91,24 +89,24 @@ function AddAlarm({ client_id, onCancel, onSave, entities }) {
 
         <Grid item xs={12}>
           <TextField
-            id="valor"
+            id="threshold"
             label="Valor"
             type="number"
             variant="outlined"
             fullWidth
-            value={valor}
+            value={threshold}
             onChange={(e) => setValor(e.target.value)}
           />
         </Grid>
 
         <Grid item xs={12}>
           <TextField
-            id="selected_key"
+            id="data_key"
             label="Selected Key"
             type="text"
             variant="outlined"
             fullWidth
-            value={selected_key}
+            value={data_key}
             onChange={(e) => setSelectedKey(e.target.value)}
           />
         </Grid>
@@ -126,8 +124,8 @@ function AddAlarm({ client_id, onCancel, onSave, entities }) {
               <MenuItem value="">
                 <em>Seleccione una condición</em>
               </MenuItem>
-              <MenuItem value=">">Mayor que</MenuItem>
-              <MenuItem value="<">Menor que</MenuItem>
+              <MenuItem value="greater_than">Mayor que</MenuItem>
+              <MenuItem value="less_than">Menor que</MenuItem>
             </Select>
           </FormControl>
         </Grid>
@@ -136,7 +134,7 @@ function AddAlarm({ client_id, onCancel, onSave, entities }) {
           <Button
             variant="contained"
             color="primary"
-            onClick={handleSaveAlarm}
+            disabled={submitting} onClick={handleSaveAlarm}
           >
             Guardar
           </Button>

@@ -1,7 +1,10 @@
 // backend/controllers/api/alarm_controller.js
 
 const AlarmService = require('../../services/alarm_service');
+const EntityService = require('../../services/entity_service');
 const AppError = require('../../utils/app_error');
+const { assertOwnership } = require('../../utils/authorization');
+const { sendSuccess, sendCollection, sendNoContent } = require('../../utils/response');
 
 /**
  * GET /api/alarm/:client_id
@@ -11,25 +14,12 @@ exports.getAlarmsByClientId = async (req, res, next) => {
   try {
     const { client_id } = req.params;
 
-    // Si se integra Joi, aquí se podría validar client_id (p. ej. Joi.number().integer().required())
-    // Ejemplo (suponiendo que ya tienes un middleware validateSchema en la ruta):
-    // validateSchema(getAlarmsSchema)
+    assertOwnership(req.user, client_id, 'listado de alarmas');
 
-    // Llamamos al service para obtener las alarmas
     const alarms = await AlarmService.fetchAlarmsByClientId(client_id);
-
-    if (!alarms || alarms.length === 0) {
-      // Lanzamos un AppError con código 404; el middleware lo capturará
-      return next(new AppError('No se encontraron alarmas para este cliente.', 404));
-    }
-
-    // Si todo ok, enviamos la lista de alarmas
-    return res.status(200).json({
-      status: 'success',
-      data: { alarms }
-    });
+    return sendCollection(res, 'alarms', alarms);
   } catch (err) {
-    // Enviamos el error al handler global
+    if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
   }
 };
@@ -40,46 +30,68 @@ exports.getAlarmsByClientId = async (req, res, next) => {
  */
 exports.insertAlarm = async (req, res, next) => {
   try {
-    const { entity_id, valor, client_id, selected_key, alarm_condition } = req.body;
+    const { entity_id, threshold, client_id, data_key, operator } = req.body;
 
-    // Aquí debería correr un middleware de validación Joi antes de llegar al controller,
-    // p. ej. validateSchema(createAlarmSchema). Para este ejemplo, hacemos validación mínima:
     if (
       entity_id == null ||
-      valor == null ||
+      threshold == null ||
       client_id == null ||
-      !selected_key ||
-      !alarm_condition
+      !data_key ||
+      !operator
     ) {
-      // En lugar de retornar directamente, lanzamos un AppError que el handler global procesará
       return next(
         new AppError(
-          'Todos los campos son obligatorios: entity_id, valor, client_id, selected_key, alarm_condition.',
-          400
+          'Todos los campos son obligatorios: entity_id, threshold, client_id, data_key, operator.',
+          400,
+          'VALIDATION_ERROR'
         )
       );
     }
 
-    // Delegamos la inserción al service
-    const newAlarm = await AlarmService.createAlarm({
+    assertOwnership(req.user, client_id, 'cliente');
+
+    const entity = await EntityService.fetchEntityById(entity_id);
+    if (!entity) {
+      return next(new AppError('Entidad no encontrada', 404, 'ENTITY_NOT_FOUND'));
+    }
+    assertOwnership(req.user, entity.client_id, 'entidad');
+
+    const alarm = await AlarmService.createAlarm({
       entity_id,
-      valor,
+      threshold,
       client_id,
-      selected_key,
-      alarm_condition,
+      data_key,
+      operator,
     });
 
-    // El servicio puede devolver el registro recién creado (incluido alarm_id)
-    return res.status(201).json({
-      message: 'Alarma insertada exitosamente',
-      alarm: newAlarm,
-    });
+    return sendSuccess(res, 201, { alarm });
   } catch (err) {
-    // Si el service lanza un AppError con un código adecuado, lo propaga
-    if (err instanceof AppError) {
-      return next(err);
-    }
-    // En caso de error inesperado, convertimos a AppError 500
+    if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
   }
+};
+
+exports.updateAlarm = async (req, res, next) => {
+  try {
+    const alarm = await AlarmService.fetchById(req.params.alarm_id);
+    if (!alarm) throw new AppError('Alarm not found', 404, 'ALARM_NOT_FOUND');
+    assertOwnership(req.user, alarm.client_id, 'alarma');
+    const entity = await EntityService.fetchEntityById(req.body.entity_id);
+    if (!entity) throw new AppError('Entity not found', 404, 'ENTITY_NOT_FOUND');
+    assertOwnership(req.user, entity.client_id, 'entidad');
+    if (Number(entity.client_id) !== Number(alarm.client_id)) {
+      throw new AppError('Entity and alarm must belong to the same client', 400, 'VALIDATION_ERROR');
+    }
+    const updated = await AlarmService.updateAlarm(req.params.alarm_id, req.body);
+    return sendSuccess(res, 200, { alarm: updated });
+  } catch (error) { next(error); }
+};
+exports.deleteAlarm = async (req, res, next) => {
+  try {
+    const alarm = await AlarmService.fetchById(req.params.alarm_id);
+    if (!alarm) throw new AppError('Alarm not found', 404, 'ALARM_NOT_FOUND');
+    assertOwnership(req.user, alarm.client_id, 'alarma');
+    await AlarmService.deleteAlarm(req.params.alarm_id);
+    return sendNoContent(res);
+  } catch (error) { next(error); }
 };

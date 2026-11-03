@@ -1,17 +1,17 @@
 const db = require("../config/db");
 
 /**
- * Retrieve rulechains for a given user_id (client)
- * @param {object} req - Express request, expects req.query.user_id
+ * Retrieve rulechains for a given client_id (client)
+ * @param {object} req - Express request, expects req.query.client_id
  * @param {object} res - Express response
  */
 async function getRulechains(client_id) {
   if (!client_id) {
-    console.error("user_id is required");
+    console.error("client_id is required");
     return null;
   }
   try {
-    const query = `SELECT * FROM rulechain WHERE user_id = ?`;
+    const query = `SELECT * FROM rulechains WHERE client_id = ?`;
     const [rows] = await db.query(query, [client_id]);
     return(rows);
   } catch (err) {
@@ -30,7 +30,7 @@ async function getRulechainById(rulechain_id) {
     return console.error("rulechain_id is required");
   }
   try {
-    const query = `SELECT * FROM rulechain WHERE rulechain_id = ?`;
+    const query = `SELECT * FROM rulechains WHERE rulechain_id = ?`;
     const [rows] = await db.query(query, [rulechain_id]);
     if (rows.length === 0) {
       console.error("Rulechain not found" );

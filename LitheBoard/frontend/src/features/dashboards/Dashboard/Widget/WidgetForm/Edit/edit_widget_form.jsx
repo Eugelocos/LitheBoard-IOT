@@ -40,16 +40,17 @@ const EditWidgetDrawer = ({
         );
         set_selected_device(device);
         setFormData({
-          widget_name: widget.widget_name,
-          widget_clave: widget.config.selected_key,
+          name: widget.name,
+          data_key: widget.widget_config.data_key,
           widget_type: widget.widget_type,
-          message_on: widget.config.message_on,
-          message_off: widget.config.message_off,
-          line_color: widget.config.line_color,
-          lat: widget.config.lat,
-          lon: widget.config.lon,
-          script_html: widget.config.scriptHtml,
-          script_css: widget.config.scriptCss,
+          message_on: widget.widget_config.message_on,
+          message_off: widget.widget_config.message_off,
+          is_on: widget.widget_config.is_on,
+          line_color: widget.widget_config.line_color,
+          lat: widget.widget_config.lat,
+          lon: widget.widget_config.lon,
+          html_template: widget.widget_config.html_template,
+          css: widget.widget_config.css,
           entity_id: widget.entity_id,
         });
       }
@@ -66,7 +67,7 @@ const EditWidgetDrawer = ({
     set_selected_device(device);
     setFormData((prev_data) => ({
       ...prev_data,
-      widget_name: prev_data.widget_name,
+      name: prev_data.name,
       client_id: device.client_id,
       entity_id: device.entity_id,
       widget_type: widget_type || "switch",
@@ -97,13 +98,13 @@ const EditWidgetDrawer = ({
     } else if (widget_type === "map") {
       if (!form_data.lat) newErrors.lat = "La Latitud es obligatoria";
       if (!form_data.lon) newErrors.lon = "La Longitud es obligatoria";
-    } else if (widget_type === "lineChart" || widget_type === "barChart") {
+    } else if (widget_type === "line_chart" || widget_type === "bar_chart") {
       if (!form_data.line_color)
         newErrors.line_color = "El color de la línea es obligatorio";
-    } else if (widget_type === "customValueCard") {
-      if (!form_data.script_html)
-        newErrors.script_html = "El HTML es obligatorio";
-      if (!form_data.script_css) newErrors.script_css = "El CSS es obligatorio";
+    } else if (widget_type === "custom_value_card") {
+      if (!form_data.html_template)
+        newErrors.html_template = "El HTML es obligatorio";
+      if (!form_data.css) newErrors.css = "El CSS es obligatorio";
     }
 
     if (!form_data.entity_id)
@@ -121,31 +122,31 @@ const EditWidgetDrawer = ({
 
     const editedWidget = {
       widget_id: widget_id,
-      widget_name: form_data.widget_name,
+      name: form_data.name,
       entity_id: selected_device.entity_id,
       widget_type: form_data.widget_type,
-      config_data: {
-        sub_topic: selected_device.sub_topic,
-        pub_topic: selected_device.pub_topic,
-        entity_name: selected_device.disp_name,
+      widget_config: {
+        sub_topic: selected_device.datasource_config?.sub_topic,
+        pub_topic: selected_device.datasource_config?.pub_topic,
+        entity_name: selected_device.name,
         ...(form_data.widget_type === "switch" && {
           message_on: form_data.message_on,
           message_off: form_data.message_off,
-          estado_actual: form_data.estado_actual || true,
+          is_on: form_data.is_on ?? true,
         }),
         ...(form_data.widget_type === "map" && {
           lat: form_data.lat,
           lon: form_data.lon,
         }),
-        ...(form_data.widget_type === "lineChart" ||
-          (form_data.widget_type === "barChart" && {
-            line_color: form_data.line_color,
-          })),
-        ...(form_data.widget_type === "customValueCard" && {
-          scriptHtml: form_data.script_html,
-          scriptCss: form_data.script_css,
+        ...((form_data.widget_type === "line_chart" ||
+          form_data.widget_type === "bar_chart") && {
+          line_color: form_data.line_color,
         }),
-        selected_key: form_data.widget_clave,
+        ...(form_data.widget_type === "custom_value_card" && {
+          html_template: form_data.html_template,
+          css: form_data.css,
+        }),
+        data_key: form_data.data_key,
       },
     };
 
@@ -180,9 +181,6 @@ const EditWidgetDrawer = ({
                       }))
                     }
                   />
-                  {errors[field.id] && (
-                    <FormHelperText error>{errors[field.id]}</FormHelperText>
-                  )}
                 </>
               ) : (
                 <TextField
@@ -268,7 +266,7 @@ const EditWidgetDrawer = ({
               >
                 {entities.map((device) => (
                   <MenuItem key={device.entity_id} value={device.entity_id}>
-                    {device.disp_name}
+                    {device.name}
                   </MenuItem>
                 ))}
               </Select>

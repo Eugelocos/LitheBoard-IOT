@@ -8,9 +8,8 @@ import {
   Paper,
 } from "@mui/material";
 import { Link, Navigate } from "react-router-dom";
-import axios from "axios";
+import { register } from "../../services/auth_service";
 import "./login_page.css";
-import zIndex from "@mui/material/styles/zIndex";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlus,
@@ -18,27 +17,24 @@ import {
   faHouseSignal,
   faChartLine,
 } from "@fortawesome/free-solid-svg-icons";
-import bcrypt from "bcryptjs";
 import { green } from "@mui/material/colors";
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import {IconButton, InputAdornment } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import config from "@config";
 function Register() {
   const [form_data, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    adminEmail: "",
-    access_level: "2",  // Por defecto, nivel de usuario
+    admin_email: "",
+    role: "client",  // Por defecto, nivel de usuario
   });
   const [registered, setRegistered] = useState(false);
   const [will_admin, setWillAdmin] = useState(false);
 
   const [show_password, setShowPassword] = useState(false);
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const togglePasswordVisibility = () => {
     setShowPassword(!show_password);
@@ -47,16 +43,8 @@ function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      console.log("Email recibido:", form_data.email.trim());
-console.log("Contraseña recibida:", form_data.password.trim());
-      const hashed_password = await bcrypt.hash(form_data.password.trim(), 10);
-
-
-      const response = await axios.post(
-        `${base_url}/api/clients/register`,
-        form_data
-      );
-      console.log("Server response:", response.data);
+      // El hash de la contraseña lo hace el backend (client_service).
+      await register(form_data);
       setRegistered(true);
     } catch (error) {
       console.error("Register error:", error);
@@ -67,7 +55,7 @@ console.log("Contraseña recibida:", form_data.password.trim());
     setWillAdmin(event.target.checked);
     setFormData((prevData) => ({
       ...prevData,
-      access_level: event.target.checked ? "1" : "2",  // Admin: 1, CommonUser: 2
+      role: event.target.checked ? "admin" : "client",  // Admin: 1, CommonUser: 2
     }));
   };
 
@@ -110,7 +98,7 @@ console.log("Contraseña recibida:", form_data.password.trim());
           <FormControlLabel control={<Checkbox checked={will_admin} onChange={handleAdminChange} />} label="Admin" />
           
           {!will_admin && (
-            <TextField fullWidth id="adminEmail" label="Correo Electrónico del Administrador" name="adminEmail" value={form_data.adminEmail} onChange={(e) => setFormData({ ...form_data, adminEmail: e.target.value })} InputLabelProps={{ style: { color: "#FFFFFF" } }} InputProps={{ style: { color: "#FFFFFF" } }} variant="filled" sx={{ backgroundColor: "#1C1C1C", borderRadius: 1 }} />
+            <TextField fullWidth id="admin_email" label="Correo Electrónico del Administrador" name="admin_email" value={form_data.admin_email} onChange={(e) => setFormData({ ...form_data, admin_email: e.target.value })} InputLabelProps={{ style: { color: "#FFFFFF" } }} InputProps={{ style: { color: "#FFFFFF" } }} variant="filled" sx={{ backgroundColor: "#1C1C1C", borderRadius: 1 }} />
           )}
 
           {!registered && (

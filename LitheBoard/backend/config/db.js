@@ -37,6 +37,7 @@ const pool = mysql.createPool({
   password: dbPassword,
   database: dbName,
 
+  timezone: 'Z',
   connectTimeout: 5000,
 
   waitForConnections: true,

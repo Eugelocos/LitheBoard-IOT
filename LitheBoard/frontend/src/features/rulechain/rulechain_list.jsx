@@ -1,6 +1,9 @@
+import { getApiErrorMessage } from "../../services/api_errors";
+import { updateRulechain, deleteRulechain } from "../../services/rulechains_service";
 import React, { useState, useEffect } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import {
+  Alert,
   IconButton,
   Drawer,
   Button,
@@ -17,8 +20,6 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 
 import RulechainBoard from "./rulechain_board";
 import AddRulechain from "./add_rulechain";
-import config from "@config";
-import api from "../../services/api"
 
 function RulechainList({ rulechains, setRulechains, entities, user }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -27,7 +28,8 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
   const [editedDescription, setEditedDescription] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editBoardOpen, setEditBoardOpen] = useState(false);
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   
   const handleEditClick = ({ rulechain_id }) => {
     const rulechain = rulechains.find(
@@ -43,42 +45,46 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedRulechain) return;
+    if (pending) return;
+    if (!editedName.trim()) { setError("Name is required."); return; }
+    setPending(true);
+    setError("");
+    if (!selectedRulechain) { setPending(false); return; }
     try {
-      await api.put(
-        `${base_url}/api/rulechain`,
+      await updateRulechain(
         {
           rulechain_id: selectedRulechain.rulechain_id,
-          user_id: selectedRulechain.user_id,
+          client_id: selectedRulechain.client_id,
           name: editedName,
           description: editedDescription,
-          rulechain: selectedRulechain.rulechain,
-          entities_ids: selectedRulechain.entities_ids,
+          definition: selectedRulechain.definition,
+          entity_ids: selectedRulechain.entity_ids,
         }
       );
       setRulechains(prev =>
         prev.map(r =>
           r.rulechain_id === selectedRulechain.rulechain_id
-            ? { ...r, name: editedName, description: editedDescription }
+            ? { ...r, ...selectedRulechain, name: editedName, description: editedDescription }
             : r
         )
       );
       setDrawerOpen(false);
       setSelectedRulechain(null);
     } catch (err) {
-      console.error(err);
-    }
+      setError(getApiErrorMessage(err, "Could not complete the operation. Please try again."));
+    } finally { setPending(false); }
   };
 
   const handleDelete = async ({ rulechain_id }) => {
+    if (pending || !window.confirm("Delete this rulechain? Unassign it from its entities first.")) return;
+    setPending(true);
+    setError("");
     try {
-      await api.delete(
-        `${base_url}/api/rulechain/${rulechain_id}`
-      );
+      await deleteRulechain(rulechain_id);
       setRulechains(prev => prev.filter(r => r.rulechain_id !== rulechain_id));
     } catch (err) {
-      console.error(err);
-    }
+      setError(getApiErrorMessage(err, "Could not complete the operation. Please try again."));
+    } finally { setPending(false); }
   };
 
   const handleAddRulechain = newRulechain => {
@@ -95,13 +101,13 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
     setDrawerOpen(true);
   };
 
-  const handleBoardSave = ({ rulechain: updatedRulechain }) => {
+  const handleBoardSave = ({ definition: updatedRulechain }) => {
     setSelectedRulechain(prev => ({
       ...prev,
-      rulechain: updatedRulechain,
+      definition: updatedRulechain,
     }));
     // volvemos al drawer para el guardado final
-    console.log("rulechain: updatedRulechain",updatedRulechain)
+    console.log("definition: updatedRulechain",updatedRulechain)
     setEditBoardOpen(false);
     setDrawerOpen(true);
   };
@@ -141,10 +147,10 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
       flex: 1,
       renderCell: ({ row }) => (
         <>
-          <IconButton onClick={() => handleDelete(row)}>
+          <IconButton disabled={pending} onClick={() => handleDelete(row)}>
             <DeleteIcon />
           </IconButton>
-          <IconButton onClick={() => handleEditClick(row)}>
+          <IconButton disabled={pending} onClick={() => handleEditClick(row)}>
             <EditIcon />
           </IconButton>
         </>
@@ -156,7 +162,7 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
     id: rc.rulechain_id,
     name: rc.name,
     entity:
-      entities.find(ent => ent.entity_id === rc.entities_ids[0])?.disp_name ||
+      entities.find(ent => ent.entity_id === rc.entity_ids[0])?.name ||
       "N/A",
     ...rc,
   }));
@@ -165,6 +171,7 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
     <div
     className="rulechain-list-panel h-full overflow-hidden overflow-x-auto  bg-white border border-gray-300 rounded-[12px] p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1)"
     >
+{error && <Alert severity="error">{error}</Alert>}
 <div className="flex justify-between items-center py-4 px-6">
             <Typography
               variant="h5"
@@ -228,17 +235,18 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
       <Drawer
         anchor="right"
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => { if (!pending) setDrawerOpen(false); }}
         sx={{ '& .MuiDrawer-paper': { width: 400, padding: 2 } }}
       >
         {selectedRulechain && (
           <Box className='mt-7'>
             <Toolbar sx={{ justifyContent: 'space-between' }}>
               <h2>Editando: {selectedRulechain.name}</h2>
-              <Button onClick={handleOpenBoardOutside}>Abrir Editor</Button>
+              <Button disabled={pending} onClick={handleOpenBoardOutside}>Abrir Editor</Button>
             </Toolbar>
             <Box mt={2}>
-              <TextField
+              {error && <Alert severity="error">{error}</Alert>}
+          <TextField
                 label="Nombre"
                 fullWidth
                 variant="filled"
@@ -255,10 +263,10 @@ function RulechainList({ rulechains, setRulechains, entities, user }) {
                 onChange={e => setEditedDescription(e.target.value)}
               />
               <Box mt={2} display="flex" justifyContent="flex-end" gap={1}>
-                <Button variant="outlined" onClick={() => setDrawerOpen(false)}>
+                <Button disabled={pending} variant="outlined" onClick={() => setDrawerOpen(false)}>
                   Cancelar
                 </Button>
-                <Button variant="contained" onClick={handleSaveEdit}>
+                <Button variant="contained" disabled={pending} onClick={handleSaveEdit}>
                   Guardar
                 </Button>
               </Box>

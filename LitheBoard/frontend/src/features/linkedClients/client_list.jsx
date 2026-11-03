@@ -1,3 +1,6 @@
+import { fetchAssociatedClients, updateClient, deleteClient } from "../../services/clients_service";
+import { assignDashboard, fetchDashboards } from "../../services/dashboards_service";
+import { getApiErrorMessage } from "../../services/api_errors";
 import React, { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import IconButton from "@mui/material/IconButton";
@@ -21,8 +24,6 @@ import {
   Typography,
   Tooltip, Fab
 } from "@mui/material";
-import config from "@config";
-import api from "../../services/api"
 
 function ClientList({
   client_id,
@@ -41,21 +42,11 @@ function ClientList({
   const [editedName, setEditedName] = useState("");
   const [editedEmail, setEditedEmail] = useState("");
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   useEffect(() => {
     // Fetch associated client IDs from the backend
-    api
-      .get(`${base_url}/api/clients/admins/${client_id}/clients`)
-      .then((response) => {
-        const associated_client_ids = response.data.data;
-        // Fetch details of each associated client
-        return api.get(
-          `${base_url}/api/clients/${associated_client_ids.join(",")}`
-        );
-      })
-      .then((response) => {
-        setClientsAsociated(response.data.data);
+    fetchAssociatedClients(client_id).then((clients) => {
+        setClientsAsociated(clients);
       })
       .catch((error) => {
         console.error("Error fetching associated clients:", error);
@@ -78,29 +69,26 @@ function ClientList({
     try {
 
       const payload = {
-        id: selectedClient.client_id,
+        client_id: selectedClient.client_id,
         name: editedName,
         email: editedEmail
       };
 
 
-      const response = await api.put(`${base_url}/api/clients`, payload);
+      const { name, email } = await updateClient(payload);
 
-      if (response.data.data.message) {
-        // Actualiza la lista de clientes
-        setClientsAsociated((prev) =>
-          prev.map((client) =>
-            client.client_id === selectedClient.client_id
-              ? { ...client, name: editedName, email: editedEmail }
-              : client
-          )
-        );
-        setDrawerOpen(false);
-        alert("Cambios guardados exitosamente");
-      }
+      setClientsAsociated((prev) =>
+        prev.map((client) =>
+          client.client_id === selectedClient.client_id
+            ? { ...client, name, email }
+            : client
+        )
+      );
+      setDrawerOpen(false);
+      alert("Cambios guardados exitosamente");
     } catch (error) {
       console.error("Error al actualizar cliente:", error);
-      alert(error.response?.data?.message || "Error al actualizar");
+      alert(getApiErrorMessage(error, "Error al actualizar"));
     }
   };
 
@@ -108,7 +96,7 @@ function ClientList({
   const handleDeleteClient = async (clientId) => {
     if (window.confirm("¿Estás seguro de eliminar este cliente?")) {
       try {
-        await api.delete(`${base_url}/api/clients/${clientId}`);
+        await deleteClient(clientId);
 
         setClientsAsociated((prev) =>
           prev.filter((client) => client.client_id !== clientId)
@@ -116,7 +104,7 @@ function ClientList({
         alert("Cliente eliminado exitosamente");
       } catch (error) {
         console.error("Error eliminando cliente:", error);
-        alert(error.response?.data?.message || "Error al eliminar");
+        alert(getApiErrorMessage(error, "Error al eliminar"));
       }
     }
   };
@@ -127,7 +115,7 @@ function ClientList({
     setSelectedclient_id(client_id);
     // Filter the dashboards assigned to the selected client
     const assigned = dashboards.filter((dashboard) =>
-      (dashboard.additional_client_ids || "[]").includes(client_id)
+      (dashboard.shared_client_ids || []).includes(client_id)
     );
     setAssignedDashboards(assigned);
 
@@ -150,26 +138,17 @@ function ClientList({
   };
 
   const handleAssignDashboard = async () => {
-    if (selected_dashboard_id && selected_client_id) {
-      api
-        .post(`${base_url}/api/dashboard/assign`, {
-          client_id: selected_client_id,
-          dashboardId: selected_dashboard_id,
-        })
-        .then((response) => {
-          alert(response.data.data.message);
+    if (!selected_dashboard_id || !selected_client_id) return;
+    try {
+      await assignDashboard(selected_client_id, selected_dashboard_id);
+      alert("Dashboard asignado correctamente");
+      handleCloseDialog();
 
-          handleCloseDialog();
-        })
-        .catch((error) => {
-          console.error("Error assigning dashboard:", error);
-          alert("Failed to assign dashboard");
-        });
+      setDashboards(await fetchDashboards(client_id));
+    } catch (error) {
+      console.error("Error assigning dashboard:", error);
+      alert(getApiErrorMessage(error, "No se pudo asignar el dashboard"));
     }
-    const dashboards_response = await api.get(
-      `${base_url}/api/dashboard/${client_id}`
-    );
-    setDashboards(dashboards_response.data.data.dashboards);
   };
 
   const columns = [
@@ -243,7 +222,7 @@ function ClientList({
   ];
   clients_asociated.forEach((client_asociated) => {
     const associatedDashboards = dashboards.filter((dashboard) =>
-      dashboard.additional_client_ids.includes(client_asociated.client_id)
+      dashboard.shared_client_ids.includes(client_asociated.client_id)
     );
   });
 
@@ -253,7 +232,7 @@ function ClientList({
     email: client_asociated.email,
     dashboards_asigned: dashboards
       .filter((dashboard) =>
-        (dashboard.additional_client_ids || "[]").includes(
+        (dashboard.shared_client_ids || []).includes(
           client_asociated.client_id
         )
       )

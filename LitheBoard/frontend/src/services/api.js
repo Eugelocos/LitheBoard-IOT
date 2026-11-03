@@ -20,6 +20,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-
+export { getApiErrorMessage, getApiErrorCode } from "./api_errors";
 
 export default api;

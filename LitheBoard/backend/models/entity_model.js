@@ -50,12 +50,12 @@ async function getEntities() {
 async function getToken(client_id, entity_id) {
   try {
     const [rows] = await db.query(
-      "SELECT datasource_config FROM entities WHERE client_id = ? AND entity_id = ?",
+      "SELECT credential FROM entities WHERE client_id = ? AND entity_id = ?",
       [client_id, entity_id]
     );
-    const datasource_config = rows[0]?.datasource_config || {};
+    const credential = rows[0]?.credential || {};
     // Si `datasource_config` ya es objeto JS, devolvemos directamente:
-    return datasource_config.token || null;
+    return (typeof credential === 'string' ? JSON.parse(credential) : credential).token || null;
   } catch (error) {
     console.error("Error al obtener el token:", error);
     throw error;
@@ -73,12 +73,12 @@ async function getToken(client_id, entity_id) {
 async function getDatasourceType(client_id, entity_id) {
   try {
     const [rows] = await db.query(
-      "SELECT datasource_config FROM entities WHERE client_id = ? AND entity_id = ?",
+      "SELECT datasource_type FROM entities WHERE client_id = ? AND entity_id = ?",
       [client_id, entity_id]
     );
     const datasource_config = rows[0]?.datasource_config || {};
     // Aquí devolvemos `.datasource_type` en lugar de una variable inexistente
-    return datasource_config.datasource_type || null;
+    return rows[0]?.datasource_type || null;
   } catch (error) {
     console.error("Error al obtener el tipo de datasource:", error);
     throw error;
@@ -89,7 +89,7 @@ async function getDatasourceType(client_id, entity_id) {
  * updateEntityStatus
  * ------------------
  * Actualiza el campo `status` dentro del JSON `datasource_config`
- * de una entidad dada, y devuelve su valor actualizado.
+ * de una entidad dada, y devuelve su threshold actualizado.
  * @param {number} client_id
  * @param {number} entity_id
  * @param {string|number|boolean} status
@@ -99,11 +99,7 @@ async function updateEntityStatus(client_id, entity_id, status) {
   try {
     const [result] = await db.query(
       `UPDATE entities
-         SET datasource_config = JSON_SET(
-           datasource_config, 
-           '$.status', 
-           ?
-         )
+         SET connection_status = ?
        WHERE client_id = ? AND entity_id = ?`,
       [status, client_id, entity_id]
     );
@@ -114,10 +110,10 @@ async function updateEntityStatus(client_id, entity_id, status) {
 
     // Recuperar el JSON actualizado para devolverlo
     const [updatedRows] = await db.query(
-      'SELECT datasource_config FROM entities WHERE client_id = ? AND entity_id = ?',
+      'SELECT connection_status FROM entities WHERE client_id = ? AND entity_id = ?',
       [client_id, entity_id]
     );
-    return updatedRows[0]?.datasource_config || null;
+    return updatedRows[0]?.connection_status || null;
   } catch (error) {
     console.error("Error al actualizar el estado:", error);
     throw error;

@@ -1,4 +1,4 @@
-// backend/services/widget_service.js
+// backend/services/dbServices/widget_service.js
 
 const db = require('../../config/db');
 const AppError = require('../../utils/app_error');
@@ -17,74 +17,8 @@ exports.fetchWidgetsWithEntities = async (clientId, dashboardId) => {
   ]);
   if (!dashboardCheck.length) throw new AppError('Dashboard no encontrado', 404);
 
-  const query = `
-    SELECT 
-      e.entity_id, 
-      e.client_id   AS entity_client_id, 
-      e.disp_name, 
-      e.datasource_type, 
-      e.datasource_config, 
-      w.widget_id,
-      w.dashboard_id, 
-      w.widget_type, 
-      w.config_data, 
-      w.widget_name
-    FROM widgets w
-    LEFT JOIN entities e ON e.entity_id = w.entity_id
-    WHERE w.client_id = ? AND w.dashboard_id = ?;
-  `;
-  const [rows] = await db.query(query, [clientId, dashboardId]);
-
-  return rows.map((row) => {
-    // Parsear los JSON que vienen en row.datasource_config y row.config_data
-    let datasourceConfig = {};
-    try {
-      datasourceConfig = row.datasource_config ? JSON.parse(row.datasource_config) : {};
-    } catch {
-      datasourceConfig = {};
-    }
-    let config = {};
-    try {
-      config = row.config_data ? JSON.parse(row.config_data) : {};
-    } catch {
-      config = {};
-    }
-
-    // Armar configuración unificada según datasource_type
-    let parsedDatasourceConfig = {};
-    if (row.datasource_type === 'MQTT') {
-      parsedDatasourceConfig = { ...datasourceConfig };
-    } else if (row.datasource_type === 'API') {
-      parsedDatasourceConfig = {
-        base_url: datasourceConfig.base_url || '',
-        endpoint: datasourceConfig.endpoint || '',
-        method: datasourceConfig.method || 'GET',
-        polling_interval: datasourceConfig.polling_interval || 0,
-        query_params: datasourceConfig.query_params || {},
-        headers: datasourceConfig.headers || {},
-        request_body: datasourceConfig.request_body || {},
-        data_key: datasourceConfig.data_key || '',
-      };
-    }
-
-    // Agregar datasource_type y parsedDatasourceConfig dentro de config
-    config.datasource_type = row.datasource_type;
-    config.datasource_config = parsedDatasourceConfig;
-
-    return {
-      entity_id: row.entity_id,
-      entity_client_id: row.entity_client_id,
-      disp_name: row.disp_name,
-      datasource_type: row.datasource_type,
-      // No incluimos datasource_config crudo para no exponer data interna
-      widget_id: row.widget_id,
-      dashboard_id: row.dashboard_id,
-      widget_type: row.widget_type,
-      widget_name: row.widget_name,
-      // Convertir config a JSON para enviar al cliente
-      config_data: JSON.stringify(config),
-    };
-  });
+  const [rows] = await db.query('SELECT * FROM widgets WHERE client_id = ? AND dashboard_id = ?', [clientId, dashboardId]);
+  return rows;
 };
 
 /**
@@ -98,45 +32,85 @@ exports.fetchById = async (widgetId) => {
   if (!rows.length) return null;
 
   const row = rows[0];
+  // FIX: mismo issue que en fetchWidgetsWithEntities — widget_config es
+  // columna JSON, mysql2 ya la entrega como objeto.
   let config = {};
   try {
-    config = row.config_data ? JSON.parse(row.config_data) : {};
+    config = typeof row.widget_config === 'string'
+      ? JSON.parse(row.widget_config)
+      : row.widget_config || {};
   } catch {
     config = {};
   }
 
   return {
     widget_id: row.widget_id,
-    widget_name: row.widget_name,
+    name: row.name,
     entity_id: row.entity_id,
     dashboard_id: row.dashboard_id,
     widget_type: row.widget_type,
-    config_data: config,
+    widget_config: config,
     client_id: row.client_id,
   };
 };
 
 /**
- * Recupera todos los widgets.
+ * NUEVO (fix del leak en GET /api/widget): recupera únicamente los widgets
+ * que pertenecen a un client_id dado, en lugar de la tabla completa.
+ * @param {string|number} clientId
+ * @returns {Array<object>}
+ */
+exports.fetchAllByClientId = async (clientId) => {
+  const query = 'SELECT * FROM widgets WHERE client_id = ?';
+  const [rows] = await db.query(query, [clientId]);
+  return rows.map((row) => {
+    // FIX: mismo issue de widget_config como columna JSON
+    let config = {};
+    try {
+      config = typeof row.widget_config === 'string'
+        ? JSON.parse(row.widget_config)
+        : row.widget_config || {};
+    } catch {
+      config = {};
+    }
+    return {
+      widget_id: row.widget_id,
+      name: row.name,
+      entity_id: row.entity_id,
+      dashboard_id: row.dashboard_id,
+      widget_type: row.widget_type,
+      widget_config: config,
+      client_id: row.client_id,
+    };
+  });
+};
+
+/**
+ * @deprecated Ya no se usa desde el controller (fugaba todos los widgets de
+ * todos los clientes). Se deja sólo por si algún script interno la usa;
+ * evaluar borrarla en la Fase 2 (limpieza de deuda técnica).
  * @returns {Array<object>}
  */
 exports.fetchAll = async () => {
   const query = 'SELECT * FROM widgets';
   const [rows] = await db.query(query);
   return rows.map((row) => {
+    // FIX: mismo issue de widget_config como columna JSON
     let config = {};
     try {
-      config = row.config_data ? JSON.parse(row.config_data) : {};
+      config = typeof row.widget_config === 'string'
+        ? JSON.parse(row.widget_config)
+        : row.widget_config || {};
     } catch {
       config = {};
     }
     return {
       widget_id: row.widget_id,
-      widget_name: row.widget_name,
+      name: row.name,
       entity_id: row.entity_id,
       dashboard_id: row.dashboard_id,
       widget_type: row.widget_type,
-      config_data: config,
+      widget_config: config,
       client_id: row.client_id,
     };
   });
@@ -144,10 +118,10 @@ exports.fetchAll = async () => {
 
 /**
  * Crea un nuevo widget.
- * @param {object} data - { widget_name, entity_id, dashboard_id, widget_type, config_data, client_id }
+ * @param {object} data - { name, entity_id, dashboard_id, widget_type, widget_config, client_id }
  * @returns {object} El widget recién creado.
  */
-exports.createWidget = async ({ widget_name, entity_id, dashboard_id, widget_type, config_data, client_id }) => {
+exports.createWidget = async ({ name, entity_id, dashboard_id, widget_type, widget_config, client_id }) => {
   // 1) Verificar existencia de client, entity y dashboard
   const [clientCheck] = await db.query('SELECT client_id FROM clients WHERE client_id = ?', [client_id]);
   if (!clientCheck.length) throw new AppError('Client no encontrado', 404);
@@ -162,18 +136,18 @@ exports.createWidget = async ({ widget_name, entity_id, dashboard_id, widget_typ
 
   // 2) Insertar en tabla widgets
   const insertQuery = `
-    INSERT INTO widgets (widget_name, entity_id, dashboard_id, widget_type, config_data, client_id)
+    INSERT INTO widgets (name, entity_id, dashboard_id, widget_type, widget_config, client_id)
     VALUES (?, ?, ?, ?, ?, ?)
   `;
   let configJson;
   try {
-    configJson = JSON.stringify(config_data);
+    configJson = JSON.stringify(widget_config);
   } catch {
-    throw new AppError('config_data debe ser un objeto JSON válido', 400);
+    throw new AppError('widget_config debe ser un objeto JSON válido', 400);
   }
 
   const [result] = await db.query(insertQuery, [
-    widget_name.trim(),
+    name.trim(),
     entity_id,
     dashboard_id,
     widget_type,
@@ -186,11 +160,11 @@ exports.createWidget = async ({ widget_name, entity_id, dashboard_id, widget_typ
 
   return {
     widget_id: result.insertId,
-    widget_name: widget_name.trim(),
+    name: name.trim(),
     entity_id,
     dashboard_id,
     widget_type,
-    config_data,
+    widget_config,
     client_id,
   };
 };
@@ -198,35 +172,35 @@ exports.createWidget = async ({ widget_name, entity_id, dashboard_id, widget_typ
 /**
  * Actualiza un widget existente.
  * @param {string|number} widgetId
- * @param {object} data - { widget_name, entity_id, dashboard_id, widget_type, config_data }
+ * @param {object} data - { name, entity_id, dashboard_id, widget_type, widget_config }
  */
-exports.updateWidget = async (widgetId, { widget_name, entity_id, dashboard_id, widget_type, config_data }) => {
+exports.updateWidget = async (widgetId, { name, entity_id, dashboard_id, widget_type, widget_config }) => {
   // 1) Verificar existencia
   const [check] = await db.query('SELECT widget_id FROM widgets WHERE widget_id = ?', [widgetId]);
   if (!check.length) {
     throw new AppError('Widget no encontrado', 404);
   }
 
-  // 2) Validar config_data
+  // 2) Validar widget_config
   let configJson;
   try {
-    configJson = JSON.stringify(config_data || {});
+    configJson = JSON.stringify(widget_config || {});
   } catch {
-    throw new AppError('config_data debe ser un objeto JSON válido', 400);
+    throw new AppError('widget_config debe ser un objeto JSON válido', 400);
   }
 
   // 3) Ejecutar UPDATE
   const updateQuery = `
     UPDATE widgets
-    SET widget_name = ?, 
-        entity_id = ?, 
-        dashboard_id = ?, 
-        widget_type = ?, 
-        config_data = ?
+    SET name = ?,
+        entity_id = ?,
+        dashboard_id = ?,
+        widget_type = ?,
+        widget_config = ?
     WHERE widget_id = ?
   `;
   const values = [
-    widget_name.trim(),
+    name.trim(),
     entity_id,
     dashboard_id || null,
     widget_type,

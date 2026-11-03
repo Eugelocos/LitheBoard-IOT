@@ -2,6 +2,9 @@
 
 const AppError = require('../../utils/app_error');
 const HistoricService = require('../../services/historic_service');
+const EntityService = require('../../services/entity_service');
+const { assertOwnership } = require('../../utils/authorization');
+const { sendNoContent, sendCollection } = require('../../utils/response');
 
 /**
  * GET /api/historic/entity/:entity_id
@@ -10,14 +13,15 @@ const HistoricService = require('../../services/historic_service');
 exports.getHistoricsByEntityId = async (req, res, next) => {
   try {
     const { entity_id } = req.params;
-    // Se asume validateSchema(getHistoricsByEntitySchema, 'params') antes de este controller
+
+    const entity = await EntityService.fetchEntityById(entity_id);
+    if (!entity) {
+      return next(new AppError('Entidad no encontrada', 404, 'ENTITY_NOT_FOUND'));
+    }
+    assertOwnership(req.user, entity.client_id, 'historics');
 
     const historics = await HistoricService.fetchByEntityId(entity_id);
-    return res.status(200).json({
-      status: 'success',
-      results: historics.length,
-      data: { historics },
-    });
+    return sendCollection(res, 'historics', historics);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -31,14 +35,11 @@ exports.getHistoricsByEntityId = async (req, res, next) => {
 exports.getHistoricByClientId = async (req, res, next) => {
   try {
     const { client_id } = req.params;
-    // Se asume validateSchema(getHistoricByClientSchema, 'params') antes de este controller
+
+    assertOwnership(req.user, client_id, 'historics');
 
     const historics = await HistoricService.fetchByClientId(client_id);
-    return res.status(200).json({
-      status: 'success',
-      results: historics.length,
-      data: { historics },
-    });
+    return sendCollection(res, 'historics', historics);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -47,18 +48,23 @@ exports.getHistoricByClientId = async (req, res, next) => {
 
 /**
  * POST /api/historic
- * Inserta un nuevo registro histórico en la tabla `historial`.
+ * Inserta un nuevo registro histórico en la tabla `historics`.
+ * Responde 204: el servicio no devuelve el registro creado.
  */
 exports.insertHistoric = async (req, res, next) => {
   try {
-    const { entity_id, date, data, client_id, selected_key } = req.body;
-    // Se asume validateSchema(createHistoricSchema) antes de este controller
+    const { entity_id, recorded_at, data, client_id, data_key } = req.body;
 
-    await HistoricService.createHistoric({ entity_id, date, data, client_id, selected_key });
-    return res.status(201).json({
-      status: 'success',
-      message: 'Historic data inserted successfully',
-    });
+    assertOwnership(req.user, client_id, 'cliente');
+
+    const entity = await EntityService.fetchEntityById(entity_id);
+    if (!entity) {
+      return next(new AppError('Entidad no encontrada', 404, 'ENTITY_NOT_FOUND'));
+    }
+    assertOwnership(req.user, entity.client_id, 'entidad');
+
+    await HistoricService.createHistoric({ entity_id, recorded_at, data, client_id, data_key });
+    return sendNoContent(res);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));

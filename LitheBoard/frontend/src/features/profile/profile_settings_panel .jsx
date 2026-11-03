@@ -1,10 +1,10 @@
+import { updateClient } from "../../services/clients_service";
+import { getApiErrorMessage } from "../../services/api_errors";
 import React, { useState } from "react";
 import { TextField, Button, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import LogoutIcon from '@mui/icons-material/Logout';
 import SaveIcon from '@mui/icons-material/Save';
-import config from "@config";
-import api from "../../services/api"
 
 const MyTextField = styled(TextField)({
   "& .MuiFilledInput-underline:after": {
@@ -36,18 +36,19 @@ const ProfileSettingsPanel = ({ user, handleLogout }) => {
   const [email, setEmail] = useState(user?.email);
   const [message, setMessage] = useState({ text: '', isError: false });
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const handleSave = async () => {
     try {
-      const response = await api.put(`${base_url}/api/clients`, {
-        id: user.id,
+      const updated_client = await updateClient({
+        client_id: user.client_id,
         name,
         email,
       });
-      setMessage({ text: response.data.data.message, isError: false });
+      setName(updated_client.name);
+      setEmail(updated_client.email);
+      setMessage({ text: 'Profile updated.', isError: false });
     } catch (error) {
-      setMessage({ text: 'Error updating profile.', isError: true });
+      setMessage({ text: getApiErrorMessage(error, 'Error updating profile.'), isError: true });
     }
   };
 

@@ -2,12 +2,11 @@ const EventEmitter = require("events");
 const mqtt_handler = require("./datasources/mqtt_handler");
 const db_handler = require("./datasources/db_handler");
 const restApiHandler = require("./datasources/api_handler");
-const historialModel = require("../models/historial_model");
 const alarmModel = require("../models/alarm_model");
+const historicModel = require('../models/historic_model');
 const ruleEngine = require('./rulechain_engine');
 const rulechainModel = require('../models/rulechain_model')
 const eventBus = require('./../services/event_bus');
-const wsHelper = require('../sockets/ws_helper')
 
 
 
@@ -25,19 +24,20 @@ class DatasourceController extends EventEmitter {
   }
 
   initialize() {
+    this.on("datasourceEvent", this.handleDatasourceEvent.bind(this));
     this.entities.forEach((entity) => {
       const { datasource_type, entity_id } = entity;
       //console.log("With Entity :", entity.entity_id)
       this.entityMap.set(entity_id, entity); // Mapeo para acceso rápido.
 
       switch (datasource_type) {
-        case "MQTT":
+        case "mqtt":
           mqtt_handler.initialize(entity, this);
           break;
-        case "DB":
+        case "db":
           db_handler.initialize(entity, this);
           break;
-        case "API":
+        case "api":
           restApiHandler.initialize(entity, this);
           break;
         default:
@@ -46,7 +46,6 @@ class DatasourceController extends EventEmitter {
     });
 
     // Escuchar eventos generados por los handlers
-    this.on("datasourceEvent", this.handleDatasourceEvent.bind(this));
     
     eventBus.on('entity.updated', this.onEntityUpdated.bind(this));
   }
@@ -56,27 +55,28 @@ class DatasourceController extends EventEmitter {
 
 
       //console.log("-------<>---------")
-      const rulechain = await rulechainModel.getRulechainById(entity.rulechain_id);
-      const rulechainCompiled = typeof rulechain.compiled === 'string'
-      ? JSON.parse(rulechain.compiled)
-      : rulechain.compiled;
-      if (
-        rulechainCompiled &&
-        rulechainCompiled.selected_key &&
-        rulechainCompiled.rules
-      ) {
-        ruleEngine.processDynamicRuleChain(rulechainCompiled, entity, data)
-        .then(() => console.log("Procesamiento secuencial completado."))
-        .catch((err) => console.error("Error en el procesamiento secuencial:", err));
+      if (!Number(entity.rulechain_id)) {
+        // The built-in default stores the complete payload. Custom chains own
+        // persistence themselves, so a store action never runs twice.
+        await historicModel.saveMessage(entity.entity_id, entity.client_id, null, data);
       } else {
-        console.log(
-          `No hay configuración de rulechain para la entidad ${entity.entity_id}`
-        );
+        const rulechain = await rulechainModel.getRulechainById(entity.rulechain_id);
+        const rulechainCompiled = typeof rulechain?.compiled === 'string'
+        ? JSON.parse(rulechain.compiled)
+        : rulechain?.compiled;
+        if (
+          rulechainCompiled &&
+          Array.isArray(rulechainCompiled.rules)
+        ) {
+          await ruleEngine.processDynamicRuleChain(rulechainCompiled, entity, data);
+        } else {
+          console.log(
+            `No hay configuración de rulechain para la entidad ${entity.entity_id}`
+          );
+        }
       }
 
-      wsHelper.emitDataMessage({
-        entity_id: entity.entity_id
-      });
+
 
       const alarms = await alarmModel.getAlarmsByDevice(
         entity.entity_id,
@@ -89,7 +89,7 @@ class DatasourceController extends EventEmitter {
             await alarmModel.saveAlarmNotification(
               alarm.alarm_id,
               entity.client_id,
-              parseInt(data[alarm.selected_key])
+              Number(data[alarm.data_key])
             );
             console.log(
               `Alarm notification registered for ${entity.entity_id}`
@@ -111,18 +111,18 @@ class DatasourceController extends EventEmitter {
 
   checkAlarmCondition(alarm, messageData) {
     try {
-      const value = parseFloat(messageData[alarm.selected_key]);
-      const threshold = parseFloat(alarm.valor);
+      const value = parseFloat(messageData[alarm.data_key]);
+      const threshold = parseFloat(alarm.threshold);
 
       if (isNaN(value) || isNaN(threshold)) {
         console.error("Invalid value or threshold.");
         return false;
       }
 
-      if (alarm.alarm_condition === ">" && value > threshold) {
+      if (alarm.operator === "greater_than" && value > threshold) {
         console.log("Alarm condition met: Greater than threshold.");
         return true;
-      } else if (alarm.alarm_condition === "<" && value < threshold) {
+      } else if (alarm.operator === "less_than" && value < threshold) {
         console.log("Alarm condition met: Less than threshold.");
         return true;
       }
@@ -143,38 +143,40 @@ class DatasourceController extends EventEmitter {
   async addOrUpdateEntity(entity) {
     if (this.entityMap.has(entity.entity_id)) {
       console.log(`Updating entity: ${entity.entity_id}`);
-      this.removeEntity(entity.entity_id); 
+      await this.removeEntity(entity.entity_id);
     } else {
       console.log(`Adding new entity: ${entity.entity_id}`);
     }
 
-    this.setupEntity(entity);
+    await this.setupEntity(entity);
   }
 
-  removeEntity(entity_id) {
-    const entity = this.entityMap.get(entity_id);
+  async removeEntity(entity_id) {
+    const key = [...this.entityMap.keys()].find((id) => String(id) === String(entity_id));
+    const entity = this.entityMap.get(key);
     if (entity) {
-      // Aquí puedes añadir lógica para detener handlers si es necesario.
-      this.entityMap.delete(entity_id);
-      this.entities = this.entities.filter((e) => e.entity_id !== entity_id);
+      const handler = { mqtt: mqtt_handler, api: restApiHandler, db: db_handler }[entity.datasource_type];
+      if (handler?.stop) await handler.stop(entity);
+      this.entityMap.delete(key);
+      this.entities = this.entities.filter((e) => String(e.entity_id) !== String(entity_id));
     }
   }
 
-  setupEntity(entity) {
+  async setupEntity(entity) {
     const { datasource_type, entity_id } = entity;
 
     this.entityMap.set(entity_id, entity);
 
     switch (datasource_type) {
-      case "MQTT":
+      case "mqtt":
         mqtt_handler.initialize(entity, this);
         console.log(`MQTT handler initialized for entity ${entity_id}`);
         break;
-      case "DB":
-        db_handler.initialize(entity, this);
+      case "db":
+        await db_handler.initialize(entity, this);
         console.log(`DB handler initialized for entity ${entity_id}`);
         break;
-      case "API":
+      case "api":
         restApiHandler.initialize(entity, this);
         console.log(`API handler initialized for entity ${entity_id}`);
         break;

@@ -2,7 +2,8 @@
 
 const db = require('../../config/db');
 const AppError = require('../../utils/app_error');
-const { generateRulesEngineJson } = require('../rulechain_service'); 
+const { generateRulesEngineJson } = require('../rulechain_service');
+const { toRuntimeGraph } = require('../../contracts/rulechain_definition');
 // Nota: suponemos que `generateRulesEngineJson` está en un archivo dedicado o modificado.
 
  /**
@@ -17,12 +18,12 @@ exports.fetchByClientId = async (clientId) => {
     throw new AppError('Client no encontrado', 404);
   }
 
-  const query = 'SELECT * FROM rulechain WHERE user_id = ?';
+  const query = 'SELECT * FROM rulechains WHERE client_id = ?';
   const [rows] = await db.query(query, [clientId]);
   return rows.map((row) => ({
     ...row,
-    rulechain: row.rulechain,
-    entities_ids: row.entities_ids,
+    definition: typeof row.definition === 'string' ? JSON.parse(row.definition) : row.definition,
+    entity_ids: row.entity_ids,
     compiled: row.compiled,
   }));
 };
@@ -33,31 +34,31 @@ exports.fetchByClientId = async (clientId) => {
  * @returns {object|null}
  */
 exports.fetchById = async (rulechainId) => {
-  const query = 'SELECT * FROM rulechain WHERE rulechain_id = ?';
+  const query = 'SELECT * FROM rulechains WHERE rulechain_id = ?';
   const [rows] = await db.query(query, [rulechainId]);
   if (!rows.length) return null;
 
   const row = rows[0];
   return {
     rulechain_id: row.rulechain_id,
-    user_id: row.user_id,
+    client_id: row.client_id,
     name: row.name,
     description: row.description,
-    rulechain: JSON.parse(row.rulechain),
-    entities_ids: JSON.parse(row.entities_ids),
-    compiled: row.compiled ? JSON.parse(row.compiled) : null,
+    definition: typeof row.definition === 'string' ? JSON.parse(row.definition) : row.definition,
+    entity_ids: typeof row.entity_ids === 'string' ? JSON.parse(row.entity_ids) : row.entity_ids,
+    compiled: typeof row.compiled === 'string' ? JSON.parse(row.compiled) : row.compiled ?? null,
   };
 };
 
 /**
  * Inserta un nuevo rulechain.
  * Genera el campo `compiled` usando `generateRulesEngineJson`.
- * @param {object} data - { user_id, name, description, rcJson, entities_ids }
+ * @param {object} data - { client_id, name, description, rcJson, entity_ids }
  * @returns {object} El nuevo rulechain.
  */
-exports.createRulechain = async ({ user_id, name, description, rcJson, entities_ids }) => {
-  // 1) Verificar existencia de user_id en clients
-  const [clientCheck] = await db.query('SELECT client_id FROM clients WHERE client_id = ?', [user_id]);
+exports.createRulechain = async ({ client_id, name, description, rcJson, entity_ids }) => {
+  // 1) Verificar existencia de client_id en clients
+  const [clientCheck] = await db.query('SELECT client_id FROM clients WHERE client_id = ?', [client_id]);
   if (!clientCheck.length) {
     throw new AppError('Client no encontrado', 404);
   }
@@ -65,23 +66,23 @@ exports.createRulechain = async ({ user_id, name, description, rcJson, entities_
   // 2) Generar estructura compilada de rulechain
   let compiled;
   try {
-    compiled = await generateRulesEngineJson(rcJson.nodes, rcJson.edges);
+    compiled = await generateRulesEngineJson(toRuntimeGraph(rcJson).nodes, toRuntimeGraph(rcJson).edges);
   } catch (e) {
     throw new AppError('Error generando JSON compilado del rulechain', 500);
   }
 
   // 3) Insertar en tabla rulechain
   const insertQuery = `
-    INSERT INTO rulechain 
-      (user_id, name, description, rulechain, entities_ids, compiled)
+    INSERT INTO rulechains
+      (client_id, name, description, definition, entity_ids, compiled)
     VALUES (?, ?, ?, ?, ?, ?)
   `;
   const values = [
-    user_id,
+    client_id,
     name.trim(),
     description || null,
     JSON.stringify(rcJson),
-    JSON.stringify(entities_ids),
+    JSON.stringify(entity_ids),
     JSON.stringify(compiled),
   ];
   const [result] = await db.query(insertQuery, values);
@@ -91,22 +92,22 @@ exports.createRulechain = async ({ user_id, name, description, rcJson, entities_
 
   return {
     rulechain_id: result.insertId,
-    user_id,
+    client_id,
     name,
     description,
-    rulechain: rcJson,
-    entities_ids,
+    definition: rcJson,
+    entity_ids,
     compiled,
   };
 };
 
 /**
  * Actualiza un rulechain existente (incluye recompilar).
- * @param {object} data - { rulechain_id, name, description, rcJson, entities_ids }
+ * @param {object} data - { rulechain_id, name, description, rcJson, entity_ids }
  */
-exports.updateRulechain = async ({ rulechain_id, name, description, rcJson, entities_ids }) => {
+exports.updateRulechain = async ({ rulechain_id, name, description, rcJson, entity_ids }) => {
   // 1) Verificar existencia de rulechain_id
-  const [check] = await db.query('SELECT rulechain_id FROM rulechain WHERE rulechain_id = ?', [rulechain_id]);
+  const [check] = await db.query('SELECT rulechain_id FROM rulechains WHERE rulechain_id = ?', [rulechain_id]);
   if (!check.length) {
     throw new AppError('Rulechain no encontrado', 404);
   }
@@ -114,22 +115,22 @@ exports.updateRulechain = async ({ rulechain_id, name, description, rcJson, enti
   // 2) Generar JSON compilado actualizado
   let compiled;
   try {
-    compiled = await generateRulesEngineJson(rcJson.nodes, rcJson.edges);
+    compiled = await generateRulesEngineJson(toRuntimeGraph(rcJson).nodes, toRuntimeGraph(rcJson).edges);
   } catch (e) {
     throw new AppError('Error generando JSON compilado del rulechain', 500);
   }
 
   // 3) Ejecutar UPDATE
   const updateQuery = `
-    UPDATE rulechain
-    SET name = ?, description = ?, rulechain = ?, entities_ids = ?, compiled = ?
+    UPDATE rulechains
+    SET name = ?, description = ?, definition = ?, entity_ids = ?, compiled = ?
     WHERE rulechain_id = ?
   `;
   const values = [
     name.trim(),
     description || null,
     JSON.stringify(rcJson),
-    JSON.stringify(entities_ids),
+    JSON.stringify(entity_ids),
     JSON.stringify(compiled),
     rulechain_id,
   ];
@@ -146,12 +147,16 @@ exports.updateRulechain = async ({ rulechain_id, name, description, rcJson, enti
  */
 exports.deleteRulechain = async (rulechainId) => {
   // 1) Verificar existencia
-  const [check] = await db.query('SELECT rulechain_id FROM rulechain WHERE rulechain_id = ?', [rulechainId]);
+  const [check] = await db.query('SELECT rulechain_id FROM rulechains WHERE rulechain_id = ?', [rulechainId]);
   if (!check.length) {
     return false;
   }
 
+  const [assigned] = await db.query('SELECT entity_id FROM entities WHERE rulechain_id = ? LIMIT 1', [rulechainId]);
+  if (assigned.length) {
+    throw new AppError('Assign the default or another rulechain to its entities before deleting this rulechain.', 409, 'RULECHAIN_IN_USE');
+  }
   // 2) Ejecutar DELETE
-  await db.query('DELETE FROM rulechain WHERE rulechain_id = ?', [rulechainId]);
+  await db.query('DELETE FROM rulechains WHERE rulechain_id = ?', [rulechainId]);
   return true;
 };

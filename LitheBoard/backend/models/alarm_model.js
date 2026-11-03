@@ -13,11 +13,11 @@ async function getAlarmsByDevice(device_id, client_id) {
   const query = "SELECT * FROM alarms WHERE entity_id = ? AND client_id = ?";
   try {
     const [result] = await db.query(query, [device_id, client_id]);
-    
+
     if (result.length === 0) {
       return null;
     }
-    
+
     return result;
   } catch (error) {
     console.error("Error retrieving alarms:", error);
@@ -36,8 +36,8 @@ async function getAlarmsByDevice(device_id, client_id) {
  */
 async function saveAlarmNotification(alarm_id, client_id, messageData) {
   const query = `
-    INSERT INTO notifications (alarm_id, client_id, date, data) 
-    VALUES (?, ?, NOW(), ?)
+    INSERT INTO notifications (alarm_id, client_id, created_at, value)
+    VALUES (?, ?, UTC_TIMESTAMP(), ?)
   `;
   console.log("Saving notification...");
   try {

@@ -1,6 +1,9 @@
+import { updateDashboard, deleteDashboard } from "../../../services/dashboards_service";
+import { getApiErrorMessage } from "../../../services/api_errors";
 import { useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import {
+  Alert,
   IconButton,
   Drawer,
   Button,
@@ -10,9 +13,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import config from "@config";
 import { Tooltip, Fab } from "@mui/material";
-import api from "../../../services/api.js"
 
 function DashboardListPanel({
   dashboards,
@@ -24,40 +25,41 @@ function DashboardListPanel({
   const [selected_dashboard, setSelectedDashboard] = useState(null);
   const [edited_name, setEditedName] = useState("");
   const [edited_description, setEditedDescription] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const handleDeleteDashboard = async (dashboard_id) => {
+    if (pending || !window.confirm("Delete this dashboard and its widgets?")) return;
+    setPending(true);
+    setError("");
     try {
-      const { data } = await api.delete(`/api/dashboard/${dashboard_id}`);
-
-      if (data.message === "Dashboard y widgets eliminados correctamente") {
-        setDashboards((prevDashboard) =>
-          prevDashboard.filter(
-            (dashboard) => dashboard.dashboard_id !== dashboard_id
-          )
-        );
-      } else {
-        console.error("Error al eliminar el dashboard:", data.message);
-      }
-    } catch (error) {
-      console.error(
-        "Error en la solicitud:",
-        error.response?.data || error.message
+      // 204 sin cuerpo: si no hubo error, el dashboard y sus widgets se eliminaron.
+      await deleteDashboard(dashboard_id);
+      setDashboards((prevDashboard) =>
+        prevDashboard.filter(
+          (dashboard) => dashboard.dashboard_id !== dashboard_id
+        )
       );
-    }
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Could not complete the operation. Please try again."));
+    } finally { setPending(false); }
   };
 
   const handleEditDashboard = (dashboard) => {
     setSelectedDashboard(dashboard);
     setEditedName(dashboard.name);
-    setEditedDescription(dashboard.descripcion);
+    setEditedDescription(dashboard.description);
     setDrawerOpen(true);
   };
 
   const handleSaveEdit = async () => {
+    if (pending) return;
+    if (!edited_name.trim()) { setError("Name is required."); return; }
+    setPending(true);
+    setError("");
     try {
-      await api.put(`${base_url}/api/dashboard`, {
+      await updateDashboard({
         dashboard_id: selected_dashboard.id,
         name: edited_name,
         description: edited_description,
@@ -78,11 +80,12 @@ function DashboardListPanel({
       setDrawerOpen(false);
       setSelectedDashboard(null);
     } catch (error) {
-      console.error("Error updating dashboard:", error);
-    }
+      setError(getApiErrorMessage(error, "Could not complete the operation. Please try again."));
+    } finally { setPending(false); }
   };
 
   const handleCancelEdit = () => {
+    if (pending) return;
     setDrawerOpen(false);
     setSelectedDashboard(null);
   };
@@ -103,7 +106,7 @@ function DashboardListPanel({
       minWidth: 50,
       renderCell: (params) => (
         <>
-          <IconButton
+          <IconButton disabled={pending}
             className="text-my-blue hover:text-red-900 "
             onClick={(e) => {
               e.stopPropagation();
@@ -112,7 +115,7 @@ function DashboardListPanel({
           >
             <DeleteIcon />
           </IconButton>
-          <IconButton
+          <IconButton disabled={pending}
             className="text-my-blue hover:text-blue-400 editButon"
             onClick={(e) => {
               e.stopPropagation();
@@ -129,12 +132,13 @@ function DashboardListPanel({
   const rows = dashboards.map((dashboard) => ({
     id: dashboard.dashboard_id,
     name: dashboard.name,
-    descripcion: dashboard.description,
+    description: dashboard.description,
     creation_date: new Date().toLocaleString(), // change to DB dashboard date
   }));
 
   return (
     <div className="dashboard-panel h-full overflow-hidden overflow-x-auto  bg-white border border-gray-300 rounded-[12px] p-2.5 shadow-[0px_0px_10px_rgba(0,0,0,0.1)">
+{error && <Alert severity="error">{error}</Alert>}
       <div className="flex justify-between items-center py-4 px-6">
         <Typography
           variant="h5"
@@ -201,9 +205,6 @@ function DashboardListPanel({
           "& .MuiDrawer-paper": {
             width: "400px",
             backgroundColor: "#f5f5f5",
-          },
-
-          "& .MuiDrawer-paper": {
             transition: "transform 0.3s ease-in-out",
           },
         }}
@@ -213,7 +214,8 @@ function DashboardListPanel({
             Editar Dashboard
           </h2>
           <div className="flex flex-wrap items-center h-[40%] w-full">
-            <TextField
+            {error && <Alert severity="error">{error}</Alert>}
+          <TextField
               autoFocus
               margin="dense"
               label="Nombre"
@@ -235,10 +237,10 @@ function DashboardListPanel({
           </div>
 
           <div className="flex justify-end mt-4 items-end w-full">
-            <Button onClick={handleCancelEdit} color="primary">
+            <Button disabled={pending} onClick={handleCancelEdit} color="primary">
               Cancelar
             </Button>
-            <Button onClick={handleSaveEdit} color="primary">
+            <Button disabled={pending} onClick={handleSaveEdit} color="primary">
               Guardar
             </Button>
           </div>

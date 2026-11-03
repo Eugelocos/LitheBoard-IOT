@@ -1,5 +1,8 @@
+import { getApiErrorMessage } from "../../services/api_errors";
+import { createRulechain } from "../../services/rulechains_service";
 import React, { useRef, useState } from "react";
 import {
+  Alert,
   TextField,
   Button,
   Typography,
@@ -9,48 +12,46 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import StatusBadge from "../../component/status_badge";
-import config from "@config";
-import api from "../../services/api"
 
 
-const defaultNode = {"id": "1784176385630", "data": {"color": "#2196F3", "label": "Input", "config": {}, "fields": [], "handles": {"outputs": ["right"]}}, "type": "input", "measured": {"width": 150, "height": 40}, "position": {"x": 153.56836551686078, "y": 281.2903338737692}}
+const defaultNode = { node_id: "input", node_type: "input", node_config: {}, position: { x: 0, y: 0 } };
 
 function AddRulechain({ onAddRulechain, showRulechainList, setRulechains, user }) {
   const nameRef = useRef();
   const descRef = useRef();
   const [status, setStatus] = useState(0); // 0: initial, 1: loading, 2: success, 3: error
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
+  const [error, setError] = useState("");
   const handleAdd = async () => {
+    if (status === 1) return;
+    setError("");
     setStatus(1);
     const name = nameRef.current.value?.trim();
     const description = descRef.current.value?.trim();
     if (!name) {
+      setError("Name is required.");
       setStatus(3);
       return;
     }
     
     console.log(user);
     const new_rulechain = {
-      user_id: user.id,
+      client_id: user.client_id,
       name,
       description: description || null,
-      rulechain: { nodes: [defaultNode], edges: [] },
-      entities_ids: []
+      definition: { nodes: [defaultNode], edges: [] },
+      entity_ids: []
     };
 
     try {
-      const { data } = await api.post(
-        `${base_url}/api/rulechain`,
-        new_rulechain
-      );
+      const created_rulechain = await createRulechain(new_rulechain);
       setStatus(2);
-      onAddRulechain(data.data.rulechain);
+      onAddRulechain(created_rulechain);
       nameRef.current.value = "";
       descRef.current.value = "";
       showRulechainList(false);
     } catch (error) {
-      console.error("Error creating rulechain:", error);
+      setError(getApiErrorMessage(error, "Could not create rulechain. Please try again."));
       setStatus(3);
     }
   };
@@ -62,7 +63,7 @@ function AddRulechain({ onAddRulechain, showRulechainList, setRulechains, user }
   return (
     <div className="max-h-fit bg-white border border-gray-300 rounded p-4 shadow-md py-10 w-full max-w-lg">
       <div className="flex justify-between items-center mb-4">
-        <IconButton onClick={handleReturn}>
+        <IconButton disabled={status === 1} onClick={handleReturn}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h6" className="flex-grow text-center">
@@ -92,11 +93,12 @@ function AddRulechain({ onAddRulechain, showRulechainList, setRulechains, user }
       <div className="mt-6 flex flex-col items-center">
         <Button
           variant="contained"
-          onClick={handleAdd}
+          disabled={status === 1} onClick={handleAdd}
           className="w-4/5"
         >
           Crear
         </Button>
+        {error && <Alert severity="error">{error}</Alert>}
         <StatusBadge status={status} />
       </div>
     </div>

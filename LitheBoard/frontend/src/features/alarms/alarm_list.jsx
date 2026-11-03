@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { getApiErrorMessage } from "../../services/api_errors";
+import { deleteAlarm } from "../../services/alarms_service";
+import React, { useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -6,45 +8,46 @@ import EditIcon from "@mui/icons-material/Edit";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import AddAlarm from "./add_alarm";
 import {
+  Alert,
   Tooltip,
   Typography,
   Fab, Box} from "@mui/material"
-import config from "@config";
-import api from "../../services/api"
 
 function AlarmList({ user, alarms, setAlarms, entities }) {
   const [isAddAlarmVisible, setIsAddAlarmVisible] = useState(false);
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
-  const handleAddAlarm = () => {
+  const [editing, setEditing] = useState(null);
+  const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const handleDelete = async (alarm_id) => {
+    if (deleting || !window.confirm("Delete this alarm and its notifications?")) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteAlarm(alarm_id);
+      setAlarms((previous) => previous.filter((alarm) => alarm.alarm_id !== alarm_id));
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Could not delete alarm. Please try again."));
+    } finally { setDeleting(false); }
+  };
+  const openAdd = () => { setEditing(null); setIsAddAlarmVisible(true); };
+  const cancelAdd= () => setIsAddAlarmVisible(false);
+
+  const handleSaveAlarm = (saved) => {
+    setAlarms((previous) => editing
+      ? previous.map((alarm) => alarm.alarm_id === saved.alarm_id ? saved : alarm)
+      : [...previous, saved]);
+    setIsAddAlarmVisible(false);
+    setEditing(null);
+  };
+  const handleEditClick = (row) => {
+    setEditing(alarms.find((alarm) => alarm.alarm_id === row.id));
     setIsAddAlarmVisible(true);
   };
 
-  const handleCancelAddAlarm = () => {
-    setIsAddAlarmVisible(false);
-  };
-  const openAdd  = () => setIsAddAlarmVisible(true);
-  const cancelAdd= () => setIsAddAlarmVisible(false);
-
-  const handleSaveAlarm = (newAlarm) => {
-    api
-      .get(`${base_url}/api/alarm/${user.id}`)
-      .then((response) => {
-        setAlarms(response.data.data.alarm);
-
-
-      })
-      .catch((error) => {
-        console.error("Error fetching alarms:", error);
-      });
-    setIsAddAlarmVisible(false);
-  };
-
-  const handleEditClick = () => {};
-
   const columns = [
     {
-      field: "disp_name",
+      field: "name",
       renderHeader: () => (
         <h2 className="font-medium text-gray-900 text-[14px]">
           {"Nombre del Dispositivo"}
@@ -52,7 +55,7 @@ function AlarmList({ user, alarms, setAlarms, entities }) {
       ),
       flex: 1,
     },
-    { field: "valor",       renderHeader: () => (
+    { field: "threshold",       renderHeader: () => (
         <h2 className="font-medium text-gray-900 text-[14px]">
           {"Valor"}
         </h2>
@@ -68,10 +71,10 @@ function AlarmList({ user, alarms, setAlarms, entities }) {
       renderCell: (params) => (
         <>
           <IconButton
-            className="text-my-blue hover:text-red-900"
+            disabled={deleting} aria-label="Delete alarm" className="text-my-blue hover:text-red-900"
             onClick={(e) => {
               e.stopPropagation();
-              // Add your delete function here
+              handleDelete(params.row.id);
             }}
           >
             <DeleteIcon />
@@ -91,14 +94,15 @@ function AlarmList({ user, alarms, setAlarms, entities }) {
   ];
   const rows = alarms.map((alarm, index) => ({
     id: alarm.alarm_id,
-    disp_name: alarm.disp_name,
-    valor: alarm.valor,
+    name: entities.find((entity) => entity.entity_id === alarm.entity_id)?.name || "Desconocido",
+    threshold: alarm.threshold,
   }));
 
   if (isAddAlarmVisible) {
     return (
       <AddAlarm
-        client_id={user.id}
+        alarm={editing}
+        client_id={user.client_id}
         entities={entities}
         onCancel={cancelAdd}
         onSave={handleSaveAlarm}
@@ -111,6 +115,7 @@ function AlarmList({ user, alarms, setAlarms, entities }) {
       className="min-w-fit w-full h-full bg-white border border-gray-300 rounded-[12px] shadow-[0px_0px_10px_rgba(0,0,0,0.1)] overflow-hidden"
       sx={{ p: 2 }}
     >
+      {error && <Alert severity="error">{error}</Alert>}
       {/* Cabecera (2) */}
       <Box className="flex justify-between items-center mb-4 px-2 py-1">
         <Typography variant="h5" className="text-lg font-semibold" sx={{ color: "#232939" }}>

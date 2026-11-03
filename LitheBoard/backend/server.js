@@ -8,6 +8,7 @@ const cookieParser = require("cookie-parser");
 require('dotenv').config();
 const configureSocket = require("./sockets/socket");
 const ws_helper = require("./sockets/ws_helper");
+const { initializeDatasource } = require("./controllers/datasource_initializer");
 
 // Importar todas las rutas
 const mqtt_routes = require('./routes/mqtt_routes');
@@ -22,6 +23,7 @@ const notification_routes = require('./routes/notification_routes');
 const rulechain_routes = require('./routes/rulechain_routes');
 
 const errorHandler = require('./middlewares/error_handler');
+const AppError = require('./utils/app_error');
 
 const app = express();
 const port = process.env.BACKEND_PORT || 3001;
@@ -40,18 +42,18 @@ app.use(cookieParser());
 // Montar rutas CORRECTAMENTE
 app.use("/api/mqtt", mqtt_routes);
 app.use('/api/otp', otp_routes);
-app.use('/api/entity', entity_routes);
-app.use('/api/widget', widget_routes);
-app.use('/api/historic', historic_routes);
+app.use('/api/entities', entity_routes);
+app.use('/api/widgets', widget_routes);
+app.use('/api/historics', historic_routes);
 app.use('/api/clients', client_routes);
-app.use('/api/dashboard', dashboard_routes);
-app.use('/api/alarm', alarm_routes);
-app.use('/api/notification', notification_routes);
-app.use('/api/rulechain', rulechain_routes);
+app.use('/api/dashboards', dashboard_routes);
+app.use('/api/alarms', alarm_routes);
+app.use('/api/notifications', notification_routes);
+app.use('/api/rulechains', rulechain_routes);
 
 // 404 handler
-app.all('*', (req, res) => {
-  res.status(404).json({ error: `Ruta ${req.originalUrl} no encontrada` });
+app.all('*', (req, res, next) => {
+  next(new AppError(`Ruta ${req.method} ${req.originalUrl} no encontrada`, 404, 'ROUTE_NOT_FOUND'));
 });
 
 // Error handler

@@ -1,0 +1,82 @@
+{
+  "root": true,
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script"
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "ignorePatterns": [
+    "node_modules/",
+    "test/mqtt_client.test.js"
+  ],
+  "rules": {
+    "id-match": [
+      "error",
+      "^(_?[a-z][a-z0-9]*(_[a-z0-9]+)*|_?[a-z][a-zA-Z0-9]*|[A-Z][a-zA-Z0-9]*|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*)$",
+      {
+        "properties": false,
+        "onlyDeclarations": true,
+        "ignoreDestructuring": true
+      }
+    ],
+    "id-denylist": [
+      "error",
+      "valor",
+      "visto",
+      "estadoActual",
+      "estado_actual",
+      "widget_clave",
+      "descripcion",
+      "dispositivo",
+      "historial",
+      "disp"
+    ],
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.object.name='res'][callee.property.name=/^(json|send|sendStatus)$/]",
+        "message": "Respond\u00e9 con utils/response.js (sendSuccess, sendCollection, sendNoContent). Ver docs/CONVENCIONES_Y_CONTRATOS.md \u00a75."
+      }
+    ],
+    "no-unused-vars": [
+      "warn",
+      {
+        "args": "none",
+        "ignoreRestSiblings": true
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "utils/response.js"
+      ],
+      "rules": {
+        "no-restricted-syntax": "off"
+      }
+    },
+    {
+      "files": [
+        "test/**/*.js"
+      ],
+      "env": {
+        "jest": true
+      }
+    },
+    {
+      "files": [
+        "migrations/**/*.js",
+        "test/unit/resource_migration.test.js"
+      ],
+      "rules": {
+        "id-denylist": "off"
+      }
+    }
+  ]
+}

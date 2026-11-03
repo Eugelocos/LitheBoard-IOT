@@ -4,7 +4,7 @@ import DeviceCard from './dashboard_widget_card.jsx';
 function DeviceWidgetList(props) {
   const { devices_list, setDevicesList, toggleSwitchState, handleMouseOver, openWidgetEditor, setEditedWidgetId, setEditedWidgetType}=props;
   
-
+  console.log("devices", devices_list)
   return (
     <>
     

@@ -1,3 +1,5 @@
+import { logout } from "../../../services/auth_service";
+import { markNotificationRead } from "../../../services/notifications_service";
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -27,8 +29,6 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from "@mui/icons-material";
-import config from "@config";
-import api from "../../../services/api"
 
 function TopMenu({
   user,
@@ -46,7 +46,6 @@ function TopMenu({
   const [expanded, setExpanded] = useState(false);
   const user_panel_ref = useRef(null);
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const toggleUserPanel = () => {
     setUserPanelOpen(!user_panel_open);
@@ -54,11 +53,9 @@ function TopMenu({
 
   const handleLogout = async () => {
     try {
-      await api.post(
-        `${base_url}/api/clients/logout`,
-        {},
-        { withCredentials: true }
-      );
+      await logout();
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
       navigate("/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
@@ -101,15 +98,12 @@ function TopMenu({
 
 
   const handleMarkAsRead = (notification_id) => {
-    api
-      .post(
-        `${base_url}/api/notification/${notification_id}/read`
-      )
+    markNotificationRead(notification_id)
       .then(() => {
         setAllNotifications((prevNotifications) =>
           prevNotifications.map((notification) =>
             notification.notification_id === notification_id
-              ? { ...notification, visto: 1 }
+              ? { ...notification, is_read: true }
               : notification
           )
         );
@@ -270,7 +264,7 @@ function TopMenu({
                               whiteSpace: "nowrap",
                             }}
                           >
-                            {notification.date}
+                            {notification.created_at}
                           </Typography>
                           <Typography
                             variant="body2"
@@ -287,7 +281,7 @@ function TopMenu({
                             device <strong>{notification.device_name}</strong>{" "}
                             has exceeded{" "}
                             <strong>{notification.alarm_value}</strong> and
-                            reached <strong>{notification.data}</strong>.
+                            reached <strong>{notification.value}</strong>.
                           </Typography>
                         </MenuItem>
                       ))}
@@ -329,13 +323,13 @@ function TopMenu({
                 <List>
                   {all_notifications.length > 0 ? (
                     all_notifications
-                      .filter((notification) => notification.visto === 1)
+                      .filter((notification) => notification.is_read)
                       .map((notification) => (
                         <ListItem
                           key={notification.notification_id}
                           button
                           onClick={() => {
-                            handleMarkAsRead(notification.id);
+                            handleMarkAsRead(notification.notification_id);
                             handleClose();
                           }}
                           sx={{
@@ -362,7 +356,7 @@ function TopMenu({
                               whiteSpace: "nowrap",
                             }}
                           >
-                            {notification.date}
+                            {notification.created_at}
                           </Typography>
                           <Typography
                             variant="body2"
@@ -378,7 +372,7 @@ function TopMenu({
                             device <strong>{notification.device_name}</strong>{" "}
                             has exceeded{" "}
                             <strong>{notification.alarm_value}</strong> and
-                            reached <strong>{notification.data}</strong>.
+                            reached <strong>{notification.value}</strong>.
                           </Typography>
                         </ListItem>
                       ))

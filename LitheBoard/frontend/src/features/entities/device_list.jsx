@@ -1,6 +1,9 @@
+import { updateEntity, deleteEntity } from "../../services/entities_service";
+import { getApiErrorMessage } from "../../services/api_errors";
 import React, { useState } from 'react';
 import { DataGrid } from '@mui/x-data-grid';
 import {
+  Alert,
   IconButton,
   Drawer,
   TextField,
@@ -21,9 +24,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import AddDevice from './add_device';
-import config from '@config';
 import StatusBadge from '../../component/status_badge';
-import api from "../../services/api"
 
 function DeviceList(props) {
   const {
@@ -41,8 +42,9 @@ function DeviceList(props) {
   const [editedRulechainId, setEditedRulechainId] = useState('');
   const [token, setToken] = useState('');
   const [status, setStatus] = useState(0);
+  const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
-  const baseUrl = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
 
   const isNameInvalid = !editedName.trim();
 
@@ -58,14 +60,18 @@ function DeviceList(props) {
       return;
     }
     setSelectedDevice(device);
-    setEditedName(match.disp_name || '');
+    setEditedName(match.name || '');
     setEditedConfig({ ...(match.datasource_config || {}) });
-    setToken(match.datasource_config?.token || '');
+    setToken(match.credential?.token || '');
     setEditedRulechainId(match.rulechain_id || '');
+    setError('');
     setDrawerOpen(true);
   };
 
   const handleDelete = async (entity) => {
+    if (deleting || !window.confirm('Delete this entity and its history? Linked widgets and alarms will be disconnected.')) return;
+    setDeleting(true);
+    setError('');
     try {
       if (!Array.isArray(entities)) return;
 
@@ -75,34 +81,30 @@ function DeviceList(props) {
         return;
       }
 
-      const { data } = await api.delete(`/api/entity/${entity.id}`);
-
-      if (data.status === "success") {
-        setEntities((prev) => prev.filter((d) => d.id !== entity.entity_id));
-      }
+      // 204 sin cuerpo: si no hubo error, la entidad se eliminó.
+      await deleteEntity(entity.id);
+      setEntities((prev) => prev.filter((d) => d.entity_id !== entity.id));
     } catch (error) {
-      console.error(
-        "Error deleting entity:",
-        error.response?.data || error.message
-      );
+      setError(getApiErrorMessage(error, 'Could not delete entity. Please try again.'));
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedDevice || isNameInvalid) return;
+    if (!selectedDevice || isNameInvalid || status === 1) return;
+    setError('');
     setStatus(1);
     try {
       const updatedData = {
         entity_id: selectedDevice.id,
-        disp_name: editedName,
+        name: editedName,
         datasource_config: { ...editedConfig },
-        rulechain_id: editedRulechainId,
+        // Zero selects the built-in default storage behavior.
+        rulechain_id: editedRulechainId || 0,
       };
       
-      await api.put(
-        `${baseUrl}/api/entity`,
-        updatedData
-      );
+      await updateEntity(updatedData);
       // update local list
       setEntities(prev =>
         prev.map(d =>
@@ -112,14 +114,17 @@ function DeviceList(props) {
         )
       );
       setStatus(2);
-      handleCancelEdit();
+      setDrawerOpen(false);
+      setSelectedDevice(null);
+      setStatus(0);
     } catch (err) {
-      console.error('Error updating device:', err);
+      setError(getApiErrorMessage(err, 'Could not update entity. Please try again.'));
       setStatus(3);
     }
   };
 
   const handleCancelEdit = () => {
+    if (status === 1) return;
     setDrawerOpen(false);
     setSelectedDevice(null);
     setEditedName('');
@@ -130,7 +135,7 @@ function DeviceList(props) {
   };
 
   const columns = [
-    { field: 'disp_name', headerName: 'Nombre', flex: 1 },
+    { field: 'name', headerName: 'Nombre', flex: 1 },
     { field: 'datasource_type', headerName: 'Datasource Type', flex: 1 },
     { field: 'rulechain_name', headerName: 'Rulechain Assigned', flex: 1 },
     {
@@ -139,7 +144,7 @@ function DeviceList(props) {
       flex: 1,
       renderCell: params => (
         <>
-          <IconButton onClick={e => { e.stopPropagation(); handleDelete(params.row); }}>
+          <IconButton disabled={deleting} aria-label="Delete entity" onClick={e => { e.stopPropagation(); handleDelete(params.row); }}>
             <DeleteIcon />
           </IconButton>
           <IconButton onClick={e => { e.stopPropagation(); handleEditClick(params.row); }}>
@@ -156,7 +161,7 @@ function DeviceList(props) {
         const rc = rulechains.find(r => r.rulechain_id === ent.rulechain_id) || {};
         return {
           id: ent.entity_id ?? '',
-          disp_name: ent.disp_name ?? '',
+          name: ent.name ?? '',
           datasource_type: ent.datasource_type ?? '',
           datasource_config: JSON.stringify(ent.datasource_config ?? {}),
           rulechain_name: rc.name || `${ent.rulechain_id ?? 'No rulechain assigned'}`,
@@ -166,6 +171,7 @@ function DeviceList(props) {
 
   return (
     <>
+      {error && !drawerOpen && <Alert severity="error">{error}</Alert>}
       {isDeviceListVisible ? (
         <Box       className="min-w-fit w-full h-full bg-white border border-gray-300 rounded-[12px] shadow-[0px_0px_10px_rgba(0,0,0,0.1)] overflow-hidden"
         sx={{ p: 2 }}>
@@ -242,13 +248,13 @@ function DeviceList(props) {
   <Stack spacing={1}>
     <Tooltip title="Tópico para suscripción (sub_topic).">
       <Typography variant="body2" fontFamily="monospace">
-        {`users/${user.id}/device/${selectedDevice.id}/data/${selectedDevice.datasource_config.sub_topic}`}
+        {`users/${user.client_id}/device/${selectedDevice.id}/data/${editedConfig.sub_topic}`}
       </Typography>
     </Tooltip>
 
     <Tooltip title="Tópico para publicación (pub_topic).">
       <Typography variant="body2" fontFamily="monospace">
-        {`users/${user.id}/device/${selectedDevice.id}/data/${selectedDevice.datasource_config.pub_topic}`}
+        {`users/${user.client_id}/device/${selectedDevice.id}/data/${editedConfig.pub_topic}`}
       </Typography>
     </Tooltip>
   </Stack>
@@ -274,15 +280,16 @@ function DeviceList(props) {
                 labelId="rulechain-label"
                 value={editedRulechainId}
                 label="Rulechain Assigned"
-                onChange={e => setEditedRulechainId(e.target.value.rulechain_id)}
+                onChange={e => setEditedRulechainId(e.target.value)}
               >
-                {rulechains.map((rc, idx) => (
-                  <MenuItem key={rc.id ?? idx} value={rc.id ?? rc}> {rc.name ?? rc} </MenuItem>
+                <MenuItem value="">Default: store received data</MenuItem>
+                {rulechains.map(rc => (
+                  <MenuItem key={rc.rulechain_id} value={rc.rulechain_id}>{rc.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
 
-            {selectedDevice?.datasource_type === 'MQTT' && (
+            {selectedDevice?.datasource_type === 'mqtt' && (
             <>
               <TextField
                 margin="dense"
@@ -315,18 +322,18 @@ function DeviceList(props) {
                 label="Heartbeat Timeout"
                 variant="outlined"
                 fullWidth
-                value={editedConfig.heartbeat_timeout || ''}
+                value={editedConfig.heartbeat_timeout_s || ''}
                 onChange={(e) =>
                   setEditedConfig({
                     ...editedConfig,
-                    heartbeat_timeout: e.target.value,
+                    heartbeat_timeout_s: e.target.value,
                   })
                 }
               />
             </>
           )}
 
-          {selectedDevice?.datasource_type === 'API' && (
+          {selectedDevice?.datasource_type === 'api' && (
             <>
               <TextField
                 margin="dense"
@@ -353,11 +360,11 @@ function DeviceList(props) {
                 label="Polling Interval"
                 variant="outlined"
                 fullWidth
-                value={editedConfig.pollingInterval || ''}
+                value={editedConfig.polling_interval_ms || ''}
                 onChange={(e) =>
                   setEditedConfig({
                     ...editedConfig,
-                    polling_interval: e.target.value,
+                    polling_interval_ms: e.target.value,
                   })
                 }
               />
@@ -419,9 +426,10 @@ function DeviceList(props) {
           </Box>
 
           {/* Footer */}
+          {error && <Alert severity="error">{error}</Alert>}
           <Box component="footer" className="flex justify-end gap-2 p-4">
-            <Button onClick={handleCancelEdit}>Cancel</Button>
-            <Button variant="contained" onClick={handleSaveEdit} disabled={isNameInvalid}>Save</Button>
+            <Button disabled={status === 1} onClick={handleCancelEdit}>Cancel</Button>
+            <Button variant="contained" onClick={handleSaveEdit} disabled={isNameInvalid || status === 1}>Save</Button>
             <StatusBadge status={status} />
           </Box>
         </Box>

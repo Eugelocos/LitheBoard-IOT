@@ -1,31 +1,39 @@
-// /sockets/socket.js
-const { Server } = require("socket.io");
+const { Server } = require('socket.io');
+const { protect } = require('../middlewares/auth');
+const jwt = require('jsonwebtoken');
 
-
-
-// Falta mejorar la privacidaad con rooms y validacion de tokens
-
-/* This code snippet is a module that exports a function. When this function is called with a `server`
-parameter, it creates a new instance of a Socket.IO server using the `Server` class. The server is
-configured with CORS settings to allow requests from a specific origin,
-specify allowed methods (`GET` and `POST`), and enable credentials. */
-module.exports = function (server) {
+module.exports = function configureSocket(server) {
   const io = new Server(server, {
     cors: {
-        origin: `${process.env.WEB_URL}:${process.env.FRONTEND_PORT}`, // Origen permitido
-        methods: ["GET", "POST"],       // Métodos permitidos
-        credentials: true,
+      origin: `${process.env.WEB_URL}:${process.env.FRONTEND_PORT}`,
+      methods: ['GET', 'POST'],
+      credentials: true,
     },
   });
-
-  io.on("connection", (socket) => {
-    console.log(`Cliente conectado: ${socket.id}`);
-    
-    // Eventos comunes de Socket.IO
-    socket.on("disconnect", () => {
-      console.log(`Cliente desconectado: ${socket.id}`);
+  io.use(async (socket, next) => {
+    const token = socket.handshake.auth?.token;
+    const req = { headers: { authorization: token ? `Bearer ${token}` : '' } };
+    await protect(req, {}, (error) => {
+      if (error) return next(new Error('Authentication required. Please sign in again.'));
+      socket.data.user = req.user;
+      socket.data.expiresAt = jwt.decode(token)?.exp;
+      next();
     });
   });
-
+  io.on('connection', (socket) => {
+    // The client never chooses rooms or supplies an account id.
+    socket.join(`client:${socket.data.user.client_id}`);
+    const expiry = socket.data.expiresAt;
+    let expiryTimer;
+    if (expiry) {
+      const disconnectWhenExpired = () => {
+        const remaining = expiry * 1000 - Date.now();
+        if (remaining <= 0) socket.disconnect(true);
+        else expiryTimer = setTimeout(disconnectWhenExpired, Math.min(remaining, 2147483647));
+      };
+      disconnectWhenExpired();
+    }
+    socket.on('disconnect', () => clearTimeout(expiryTimer));
+  });
   return io;
 };

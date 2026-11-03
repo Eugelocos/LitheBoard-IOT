@@ -1,3 +1,10 @@
+import socket from "../../socket";
+import { fetchEntities } from "../../services/entities_service";
+import { fetchDashboards, createDashboard } from "../../services/dashboards_service";
+import { fetchAlarms } from "../../services/alarms_service";
+import { fetchRulechains } from "../../services/rulechains_service";
+import { fetchNotifications } from "../../services/notifications_service";
+import { logout, readStoredClient } from "../../services/auth_service";
 import React, { useState, useEffect } from "react";
 import Dashboard from "../dashboards/Dashboard/dashboard";
 import "../../dashboards_panel.css";
@@ -10,25 +17,22 @@ import LateralMenu from "../menu/LateralMenu/lateral_menu";
 import { Drawer, Button, Toolbar } from "@mui/material";
 import AlarmList from "../alarms/alarm_list";
 import ClientList from "../linkedClients/client_list";
-import config from "@config";
-import api from "../../services/api.js";
 
 import RulechainList from "../rulechain/rulechain_list.jsx";
 
 const entityTest = {
   entity_id: 234,
   client_id: 4,
-  disp_name: "RandomNumber",
-  datasource_type: "API",
+  name: "RandomNumber",
+  datasource_type: "api",
   datasource_config: {
     method: "GET",
     headers: "",
     base_url: "https://random-data-api.com/api/number/random_number",
     data_key: "fact",
-    endpoint: "",
     query_params: "",
     request_body: "",
-    polling_interval: "10000",
+    polling_interval_ms: "10000",
   },
 };
 
@@ -46,7 +50,11 @@ function DashboardPanel() {
 
   const [loading, setLoading] = useState(true);
 
-  const base_url = `${config.BACKEND_URL}:${config.BACKEND_API_PORT}`;
+  useEffect(() => {
+    if (localStorage.getItem("token")) socket.connect();
+    return () => socket.disconnect();
+  }, []);
+
   useEffect(() => {
     const initialize = async () => {
       const storedUserJSON = localStorage.getItem("user");
@@ -59,38 +67,25 @@ function DashboardPanel() {
       let parsedUser;
 
       try {
-        parsedUser = JSON.parse(storedUserJSON);
+        parsedUser = readStoredClient();
+        if (!parsedUser) { navigate("/login"); return; }
       } catch (err) {
         console.error("Error parseando usuario:", err);
         navigate("/login");
         return;
       }
 
+
       setLoading(true);
       setUser(parsedUser);
 
       try {
-        // Carga inicial en paralelo
-        const [
-          entitiesResponse,
-          dashboardsResponse,
-          alarmsResponse,
-          rulechainsResponse,
-        ] = await Promise.all([
-          api.get(`${base_url}/api/entity`, {
-            params: { client_id: parsedUser.id },
-          }),
-          api.get(`${base_url}/api/dashboard/${parsedUser.id}`),
-          api.get(`${base_url}/api/alarm/${parsedUser.id}`),
-          api.get(`${base_url}/api/rulechain`, {
-            params: { client_id: parsedUser.id },
-          }),
+        const [entities, dashboards, alarms, rulechains] = await Promise.all([
+          fetchEntities(parsedUser.client_id),
+          fetchDashboards(parsedUser.client_id),
+          fetchAlarms(parsedUser.client_id),
+          fetchRulechains(parsedUser.client_id),
         ]);
-        console.log("hola.", alarmsResponse)
-        const entities = entitiesResponse.data.data.entities;
-        const dashboards = dashboardsResponse.data.data.dashboards;
-        const alarms = alarmsResponse.data.data.alarms;
-        const rulechains = rulechainsResponse.data.data.rulechains;
 
         setEntities(entities);
         setDashboards(dashboards);
@@ -98,11 +93,7 @@ function DashboardPanel() {
         setRulechains(rulechains);
 
         // Notificaciones (dependen de las alarmas)
-        const notificationsResponse = await api.get(
-          `${base_url}/api/notification/${parsedUser.id}`
-        );
-
-        const notifications = notificationsResponse.data.data.notifications;
+        const notifications = await fetchNotifications(parsedUser.client_id);
 
         const notificationsWithDetails = notifications.map((notification) => {
           const alarm =
@@ -110,15 +101,15 @@ function DashboardPanel() {
 
           return {
             ...notification,
-            alarm_value: alarm.valor || "Desconocido",
-            alarm_key: alarm.selected_key || "Desconocido",
-            device_name: alarm.disp_name || "Desconocido",
+            alarm_value: alarm.threshold ?? "Desconocido",
+            alarm_key: alarm.data_key || "Desconocido",
+            device_name: entities.find((entity) => entity.entity_id === alarm.entity_id)?.name || "Desconocido",
           };
         });
 
         setAllNotifications(notificationsWithDetails);
         setUnseenNotifications(
-          notificationsWithDetails.filter((n) => n.visto === 0)
+          notificationsWithDetails.filter((n) => !n.is_read)
         );
 
       } catch (error) {
@@ -133,7 +124,7 @@ function DashboardPanel() {
     };
 
     initialize();
-  }, [navigate, base_url]);
+  }, [navigate]);
 
 
 
@@ -145,18 +136,13 @@ function DashboardPanel() {
   const handleAddDashboard = async () => {
     try {
       const newDashboard = {
-        id: dashboards.length + 1,
         name: `dashboard ${dashboards.length + 1}`,
         description: "Dashboard",
-        client_id: user.id,
+        client_id: user.client_id,
       };
 
-      await api.post(`${base_url}/api/dashboard`, newDashboard);
-
-      const updatedDashboards = await api.get(
-        `${base_url}/api/dashboard/${user.id}`
-      );
-      setDashboards(updatedDashboards.data.data.dashboards);
+      await createDashboard(newDashboard);
+      setDashboards(await fetchDashboards(user.client_id));
     } catch (error) {
       console.error("Error saving dashboard:", error);
     }
@@ -174,8 +160,9 @@ function DashboardPanel() {
     if (section === "dashboards" && dashboard) {
       const allDashboards = document.querySelectorAll(".dashboard-content");
       allDashboards.forEach((d) => (d.style.display = "none"));
+      const dashboardId = dashboard.dashboard_id;
       const selected_dashboard = document.getElementById(
-        `dashboard-${dashboard.id}`
+        `dashboard-${dashboardId}`
       );
       if (selected_dashboard) {
         selected_dashboard.style.display = "block";
@@ -185,7 +172,9 @@ function DashboardPanel() {
 
   const handleLogout = async () => {
     try {
-      await api.post(`${base_url}/api/clients/logout`, {}, { withCredentials: true });
+      await logout();
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
       navigate("/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
@@ -370,13 +359,13 @@ function DashboardPanel() {
             ></RulechainList>
           </div>
 
-          {user?.access_level_id === 1 && (
+          {user?.role === "admin" && (
             <div
               className="clients-settings min-[500px]:p-10 px-30 w-full m-[0.25rem]"
               style={{ display: "none" }}
             >
               <ClientList
-                client_id={user?.id}
+                client_id={user?.client_id}
                 dashboards={dashboards}
                 clients_asociated={clients_asociated}
                 setClientsAsociated={setClientsAsociated}

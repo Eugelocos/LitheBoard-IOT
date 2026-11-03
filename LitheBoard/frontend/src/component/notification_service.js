@@ -1,13 +1,11 @@
-import axios from "axios";
+import { createNotification } from "../services/notifications_service";
 
-
-export const saveNotification = (notification_data) => {
-  axios
-    .post(`http://localhost:3001/api/notification`, notification_data)
-    .then((response) => {
-      console.log("Notification saved:", response.data.data);
-    })
-    .catch((error) => {
-      console.error("Saving notification error:", error);
-    });
-};
+// Legacy fire-and-forget adapter: keep logging failures for existing callers.
+export const saveNotification = (notification) => createNotification(notification)
+  .then((created_notification) => {
+    console.log("Notification saved:", created_notification);
+    return created_notification;
+  })
+  .catch((error) => {
+    console.error("Saving notification error:", error);
+  });

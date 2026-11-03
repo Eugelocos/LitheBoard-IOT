@@ -8,7 +8,7 @@ export const NODE_TYPES = [
       handles: { outputs: ["right"] },
     },
 
-  
+
     // Processing
     {
       label: "Filtro de Mensajes",
@@ -16,12 +16,12 @@ export const NODE_TYPES = [
       icon: "⚡",
       color: "#FFEB3B",
       fields: [
-        { name: "value", label: "Threshold", type: "text" },
+        { name: "threshold", label: "Threshold", type: "text" },
         {
-          name: "filter",
+          name: "operator",
           label: "Condition",
           type: "select",
-          options: ["greaterThan", "lessThan", "equal"],
+          options: ["greater_than", "less_than", "equal"],
         },
       ],
       handles: { inputs: ["left"], outputs: ["right"] },
@@ -31,10 +31,10 @@ export const NODE_TYPES = [
       type: "processing",
       icon: "🔑",
       color: "#FFEB3B",
-      fields: [{ name: "key", label: "Key", type: "text" }],
+      fields: [{ name: "data_key", label: "Key", type: "text" }],
       handles: { inputs: ["left"], outputs: ["right"] },
     },
-  
+
     // Actions
     {
       label: "Notificación",
@@ -43,12 +43,12 @@ export const NODE_TYPES = [
       color: "#4CAF50",
       fields: [
         {
-          name: "tipo",
+          name: "notification_type",
           label: "Tipo",
           type: "select",
-          options: ["Email", "SMS"],
+          options: ["email", "sms"],
         },
-        { name: "destino", label: "Destino", type: "text" },
+        { name: "destination", label: "Destino", type: "text" },
       ],
       handles: { inputs: ["left"] },
     },
@@ -60,14 +60,14 @@ export const NODE_TYPES = [
       fields: [],
       handles: { inputs: ["left"] },
     },
-  
+
     // Logic
     {
       label: "Retraso",
       type: "logic",
       icon: "⏰",
       color: "#FF9800",
-      fields: [{ name: "delay", label: "Delay (ms)", type: "number" }],
+      fields: [{ name: "delay_ms", label: "Delay (ms)", type: "number" }],
       handles: { inputs: ["left"], outputs: ["right"] },
     },
     {
@@ -76,13 +76,13 @@ export const NODE_TYPES = [
       icon: "➕",
       color: "#FF9800",
       fields: [
-        
-         { name: "agregator", label: "Agregator", type: "text" }
-        
+
+         { name: "aggregator", label: "Agregator", type: "text" }
+
       ],
       handles: { inputs: ["left"], outputs: ["right"] },
     },
-  
+
     // Outputs
     {
       label: "Publicar MQTT",
@@ -112,4 +112,4 @@ export const NODE_TYPES = [
       handles: { inputs: ["left"] },
     },
   ];
-  
+

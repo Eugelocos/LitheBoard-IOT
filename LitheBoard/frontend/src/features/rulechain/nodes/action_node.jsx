@@ -11,7 +11,7 @@ export default function ActionNode({ id, data }) {
       const initialValues = {};
       (data.fields || []).forEach((field) => {
         if (field.type === 'select') {
-          // Asigna el valor existente o, si no existe, el primer elemento de field.options.
+          // Asigna el threshold existente o, si no existe, el primer elemento de field.options.
           initialValues[field.name] = data.config?.[field.name] || (field.options && field.options[0]) || "";
         } else {
           initialValues[field.name] = data.config?.[field.name] || "";

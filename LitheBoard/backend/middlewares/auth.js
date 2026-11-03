@@ -2,6 +2,7 @@
 
 const jwt = require('jsonwebtoken');
 const AppError = require('../utils/app_error');
+const { sendSuccess } = require('../utils/response');
 const { jwtSecret, jwtExpiresIn } = require('../config');
 const clientService = require('../services/client_service'); // <-- usamos client_service en lugar de user_model
 const bcrypt = require('bcryptjs'); // Solo si lo necesitas para comparar contraseñas en otro punto
@@ -10,6 +11,7 @@ const bcrypt = require('bcryptjs'); // Solo si lo necesitas para comparar contra
 const roles = {
   1 : "admin", 
   2 : "client",
+  3 : "manager",
   // ..
 }
 
@@ -42,12 +44,13 @@ exports.protect = async (req, res, next) => {
     try {
       decoded = jwt.verify(token, jwtSecret);
     } catch (err) {
-      return next(new AppError('Token inválido o expirado. Inicia sesión de nuevo.', 401));
+      return next(new AppError('Token inválido o expirado. Inicia sesión de nuevo.', 401, 'TOKEN_INVALID'));
     }
 
     // 3) Comprobar que el cliente aún existe en la base de datos
     //    (podría haber sido eliminado)
-    const clientRecord = await clientService.findById(decoded.id);
+    if (decoded.client_id == null) return next(new AppError('Token inválido. Inicia sesión de nuevo.', 401, 'TOKEN_INVALID'));
+    const clientRecord = await clientService.findById(decoded.client_id);
     if (!clientRecord) {
       return next(new AppError('El cliente del token ya no existe.', 401));
     }
@@ -71,11 +74,11 @@ exports.protect = async (req, res, next) => {
 
     // 5) Si todo ok, se adjuntan los datos mínimos del cliente en req.user
     req.user = {
-      id: clientRecord.id,
+      client_id: clientRecord.client_id,
       name: clientRecord.name,
       email: clientRecord.email,
-      role: roles[clientRecord.role],
-      admin_id: clientRecord.admin_id,
+      role: roles[clientRecord.access_level_id],
+      admin_client_id: clientRecord.admin_client_id,
     };
     next();
   } catch (err) {
@@ -113,7 +116,7 @@ exports.createSendToken = (client, statusCode, res) => {
   // Payload
   const role =  roles[client.access_level_id]
 
-  const payload = { id: client.client_id, role: role };
+  const payload = { client_id: client.client_id, role };
 
   // Firmar el token con el secreto y establecer expiración
   const token = jwt.sign(payload, jwtSecret, {
@@ -121,16 +124,15 @@ exports.createSendToken = (client, statusCode, res) => {
   });
 
   
-  // Enviar JSON con token y datos mínimos del cliente
-  res.status(statusCode).json({
-    status: 'success',
-    token,
-    data: {
+  // El JWT y el cliente público usan exclusivamente client_id.
+  return sendSuccess(res, statusCode, {
+    session: {
+      token,
       client: {
-        id: client.client_id,
+        client_id: client.client_id,
         email: client.email,
         role: role,
-        name: client.name
+        name: client.name,
       },
     },
   });

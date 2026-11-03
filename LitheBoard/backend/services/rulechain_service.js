@@ -42,7 +42,7 @@ async function generateRulesEngineJson(nodes, edges) {
     if (node.data.label === "Filtro de Mensajes") {
       if (node.data?.config?.filter) {
         currentRule.conditions.all.push({
-          fact: currentRule.selected_key, // Consistencia en el nombre
+          fact: currentRule.data_key, // Consistencia en el nombre
           operator: node.data?.config?.filter,
           value: node.data?.config?.value,
         });
@@ -91,8 +91,8 @@ async function generateRulesEngineJson(nodes, edges) {
       console.log("Agregada acción de webhook");
     } else if (node.data.label === "Key Selector") {
       if (node.data?.config?.key) {
-        console.log("Actualizando selected_key:", node.data.config.key);
-        currentRule.selected_key = node.data.config.key;
+        console.log("Actualizando data_key:", node.data.config.key);
+        currentRule.data_key = node.data.config.key;
       }
     }
 
@@ -122,7 +122,7 @@ async function generateRulesEngineJson(nodes, edges) {
 
   // Regla base: partimos del input
   const initialRule = {
-    selected_key: "default_key", // Valor por defecto
+    data_key: "default_key", // Valor por defecto
     conditions: { all: [] },
     actions: [],
   };
@@ -131,7 +131,7 @@ async function generateRulesEngineJson(nodes, edges) {
   dfs(inputNode.id, initialRule);
 
   return {
-    selected_key: initialRule.selected_key,
+    data_key: initialRule.data_key,
     rules,
   };
 }

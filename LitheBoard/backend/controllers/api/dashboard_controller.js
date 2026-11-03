@@ -2,6 +2,10 @@
 
 const AppError = require('../../utils/app_error');
 const DashboardService = require('../../services/dashboard_service');
+const { assertOwnership } = require('../../utils/authorization');
+const { sendSuccess, sendCollection, sendNoContent } = require('../../utils/response');
+
+const dashboardNotFound = () => new AppError('Dashboard no encontrado', 404, 'DASHBOARD_NOT_FOUND');
 
 /**
  * POST /api/dashboard
@@ -9,21 +13,18 @@ const DashboardService = require('../../services/dashboard_service');
  */
 exports.insertDashboard = async (req, res, next) => {
   try {
-    const { name, description, client_id, additional_client_ids = [] } = req.body;
+    const { name, description, client_id, shared_client_ids = [] } = req.body;
 
-    // Asumimos que validateSchema(createDashboardSchema) ya corrió antes de este controller
+    assertOwnership(req.user, client_id, 'cliente');
 
-    const newDashboard = await DashboardService.createDashboard({
+    const dashboard = await DashboardService.createDashboard({
       name: name.trim(),
       description: description.trim(),
       client_id,
-      additional_client_ids,
+      shared_client_ids,
     });
 
-    return res.status(201).json({
-      status: 'success',
-      data: { dashboard: newDashboard },
-    });
+    return sendSuccess(res, 201, { dashboard });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -32,23 +33,16 @@ exports.insertDashboard = async (req, res, next) => {
 
 /**
  * GET /api/dashboard/:client_id
- * Recupera todos los dashboards donde client_id es dueño o está en additional_client_ids.
+ * Recupera todos los dashboards donde client_id es dueño o está en shared_client_ids.
  */
 exports.getDashboardsByClientId = async (req, res, next) => {
   try {
     const { client_id } = req.params;
-    // Asumimos validateSchema(getDashboardsSchema, 'params') antes de este controller
+
+    assertOwnership(req.user, client_id, 'listado de dashboards');
 
     const dashboards = await DashboardService.fetchDashboardsByClientId(client_id);
-    if (!dashboards || dashboards.length === 0) {
-      return next(new AppError('No se encontraron dashboards para este cliente', 404));
-    }
-
-    return res.status(200).json({
-      status: 'success',
-      results: dashboards.length,
-      data: { dashboards },
-    });
+    return sendCollection(res, 'dashboards', dashboards);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -57,25 +51,26 @@ exports.getDashboardsByClientId = async (req, res, next) => {
 
 /**
  * PUT /api/dashboard
- * Actualiza nombre, descripción y additional_client_ids de un dashboard existente.
+ * Actualiza nombre, descripción y shared_client_ids, y devuelve el dashboard actualizado.
  */
 exports.updateDashboard = async (req, res, next) => {
   try {
-    const { dashboard_id, name, description, additional_client_ids = [] } = req.body;
-    // Asumimos validateSchema(updateDashboardSchema) antes de este controller
+    const { dashboard_id, name, description, shared_client_ids = [] } = req.body;
+
+    const existing = await DashboardService.fetchById(dashboard_id);
+    if (!existing) return next(dashboardNotFound());
+    assertOwnership(req.user, existing.client_id, 'dashboard');
 
     const updated = await DashboardService.updateDashboard({
       dashboard_id,
       name: name.trim(),
       description: description.trim(),
-      additional_client_ids,
+      shared_client_ids,
     });
+    if (!updated) return next(dashboardNotFound());
 
-    if (!updated) {
-      return next(new AppError('Dashboard no encontrado', 404));
-    }
-
-    return res.status(200).json({ status: 'success', message: 'Dashboard actualizado correctamente' });
+    const dashboard = await DashboardService.fetchById(dashboard_id);
+    return sendSuccess(res, 200, { dashboard });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -89,14 +84,15 @@ exports.updateDashboard = async (req, res, next) => {
 exports.deleteDashboard = async (req, res, next) => {
   try {
     const { dashboard_id } = req.params;
-    // Asumimos validateSchema(deleteDashboardSchema, 'params') antes de este controller
+
+    const existing = await DashboardService.fetchById(dashboard_id);
+    if (!existing) return next(dashboardNotFound());
+    assertOwnership(req.user, existing.client_id, 'dashboard');
 
     const result = await DashboardService.deleteDashboard(dashboard_id);
-    if (result === 'not_found') {
-      return next(new AppError('Dashboard no encontrado', 404));
-    }
+    if (result === 'not_found') return next(dashboardNotFound());
 
-    return res.status(200).json({ status: 'success', message: 'Dashboard y widgets eliminados correctamente' });
+    return sendNoContent(res);
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));
@@ -105,28 +101,22 @@ exports.deleteDashboard = async (req, res, next) => {
 
 /**
  * POST /api/dashboard/assign
- * Asigna un cliente a additional_client_ids de un dashboard.
+ * Comparte un dashboard con un cliente (shared_client_ids). Es idempotente:
+ * si ya estaba compartido responde igual, con el dashboard actual.
  */
 exports.assignDashboardToClient = async (req, res, next) => {
   try {
-    const { clientId, dashboardId } = req.body;
-    // Asumimos validateSchema(assignDashboardSchema) antes de este controller
+    const { client_id, dashboard_id } = req.body;
 
-    const assignResult = await DashboardService.assignDashboardToClient(clientId, dashboardId);
+    const existing = await DashboardService.fetchById(dashboard_id);
+    if (!existing) return next(dashboardNotFound());
+    assertOwnership(req.user, existing.client_id, 'dashboard');
 
-    if (assignResult === 'not_found') {
-      return next(new AppError('Dashboard no encontrado', 404));
-    }
-    if (assignResult === 'already_assigned') {
-      return res
-        .status(200)
-        .json({ status: 'success', message: 'Client ya estaba asignado a este dashboard' });
-    }
+    const assign_result = await DashboardService.assignDashboardToClient(client_id, dashboard_id);
+    if (assign_result === 'not_found') return next(dashboardNotFound());
 
-    // assignResult contiene el dashboard actualizado
-    return res
-      .status(200)
-      .json({ status: 'success', message: 'Dashboard asignado correctamente', data: { dashboard: assignResult } });
+    const dashboard = await DashboardService.fetchById(dashboard_id);
+    return sendSuccess(res, 200, { dashboard });
   } catch (err) {
     if (err instanceof AppError) return next(err);
     return next(new AppError(err.message, 500));

@@ -1,47 +1,34 @@
-/* The line `let io;` is declaring a variable named `io` using the `let` keyword in JavaScript. It is
-intended to be used to store a reference to a Socket.IO connection once it is initialized in
-the `init` function. */
+const db = require('../config/db');
 let io;
+function init(socket_io) { io = socket_io; }
 
-
-
-/**
- * The `init` function initializes a socket.io connection by setting the `io` variable to the provided
- * `socketIo` parameter.
- * @param {object} socketIo - Socket.IO is a JavaScript library for real-time web applications. It enables
- * real-time, bidirectional and event-based communication between clients and servers.
- */
-function init(socketIo) {
-  io = socketIo;
+async function emitForEntity(entity_id, event, payload) {
+  if (!io || entity_id == null) return;
+  try {
+    // Resolve access on each event so unlinking a client or unsharing a
+    // dashboard also revokes an already connected socket's access.
+    const [clients] = await db.query(`
+      SELECT DISTINCT c.client_id FROM clients c
+      JOIN entities e ON e.entity_id = ?
+      WHERE c.client_id = e.client_id
+        OR (c.access_level_id = 2 AND c.admin_client_id = e.client_id)
+        OR EXISTS (
+          SELECT 1 FROM widgets w JOIN dashboards d ON d.dashboard_id = w.dashboard_id
+          WHERE w.entity_id = e.entity_id
+            AND JSON_CONTAINS(d.shared_client_ids, CAST(c.client_id AS JSON), '$')
+        )`, [entity_id]);
+    if (clients.length) io.to(clients.map((client) => `client:${client.client_id}`)).emit(event, payload);
+  } catch (error) {
+    // Fail closed: a database failure must never fall back to a broadcast.
+    console.error('Could not authorize realtime event:', error.message);
+  }
 }
-
-
-/**
- * The function `emitDataMessage` emits a "data_updated" event with the provided data using Socket.IO
- * if it is initialized.
- * @param data - The `data` parameter in the `emitDataMessage` function is the data that will be sent
- * along with the "data_updated" event when emitting it using Socket.IO. This data will be any sort of 
- * data that the backend has received previusly
- */
-function emitDataMessage(data) {
-  if (io) io.emit("data_updated", data);
-};
-
-
-/**
- * The function `emitEntityStateChange` emits a "state_updated" event with the provided data using
- * Socket.IO if it is initialized.
- * @param data - The `data` parameter in the `emitEntityStateChange` function is the information or
- * data that you want to emit to the clients when the entity state changes. This data could include any
- * relevant information about the state change that you want to send to the connected clients using
- * Socket.IO.
- */
-function emitEntityStateChange({ entity_id, status }) {
-  if (io) io.emit("entity_state_change", { entity_id, status });
+function emitHistoricCreated(historic) {
+  return emitForEntity(historic.entity_id, 'historic:created', {
+    historic: require('../contracts/resources').serializeResource('historic', historic),
+  });
 }
-
-module.exports = {
-  init,
-  emitDataMessage,
-  emitEntityStateChange
-};
+function emitEntityStateChange({ entity_id, connection_status }) {
+  return emitForEntity(entity_id, 'entity:connection_changed', { entity_id, connection_status });
+}
+module.exports = { init, emitHistoricCreated, emitEntityStateChange };
